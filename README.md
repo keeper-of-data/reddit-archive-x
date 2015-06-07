@@ -21,7 +21,7 @@ Developed using Python 3.4
      |     |  └─ <year>
      |     |     └─ <month>
      |     |        └─ <day>
-     |     |           ├─ <post_id>
+     |     |           ├─ <created_utc>  # epoch time
      |     |           |  ├─ index.html
      |     |           |  └─ post.json
      |     |           |
