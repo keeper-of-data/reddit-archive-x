@@ -366,14 +366,15 @@ class RedditScraper(GeneralUtils):
 
     def cleanup(self):
         self.reddit.close()
-        try:
-            os.removedirs(self.download_path)
-        except OSError:
-            pass
 
 
 def signal_handler(signum, frame):
-    print("Quit the running process")
+    global save_path
+    print("Quit the running process and clean up")
+    try:
+        os.removedirs(os.path.join(save_path, "files", "downloads"))
+    except OSError:
+        pass
 
 
 def check_lock_file(lock_file):
@@ -416,12 +417,13 @@ if __name__ == "__main__":
 
     # Verify config
     # Check that there is a log file to write to
-    log_path = utils.create_path(config['parser']['log_path'], is_dir=True)
+    log_path = utils.create_path(os.path.expanduser(config['parser']['log_path']), is_dir=True)
+
     # Create logger to use
     logger = setup_custom_logger('root', os.path.join(log_path, "reddit_scraper.log"))
 
     # Check save path
-    save_path = utils.create_path(config['parser']['save_path'])
+    save_path = utils.create_path(os.path.expanduser(config['parser']['save_path']), is_dir=True)
 
     scrape_dict = {'subreddits': [], 'users': [], 'content': {}}
 
