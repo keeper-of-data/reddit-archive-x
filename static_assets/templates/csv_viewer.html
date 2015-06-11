@@ -1,0 +1,46 @@
+<script type="text/javascript" src="/assets/js/csvToArray.js"></script>
+<script type="text/javascript">
+$.ajax({
+    url: "urls.csv",
+    dataType: 'text',
+    cache: false
+ }).done(function(csvAsString){
+    links=csvAsString.csvToArray();
+    // console.log(links);
+    $.each(links, function(i, link){
+        if(link[0].length != 0){
+            var post_data;
+            getJson( link[0]+'post.json' )
+                .done(function(data){
+                    post_data = data;
+
+                    $('<div id="post-'+i+'" class="post-wrapper" data-posted="'+post_data.created_utc+'"><hr /> \
+                        <span id="post-title-'+i+'" class="post-title"></div> \
+                        <div id="post-body-'+i+'" class="post-body"></div> \
+                        </div>')
+                        .appendTo('div#posts');
+
+                    var thumbnail_src = '';
+                    if(post_data.thumbnail.charAt(0) == '/'){
+                        thumbnail_src = post_data.thumbnail;
+                    }
+                    var thumbnail = '<img src="'+thumbnail_src+'" width="70"  height="70" alt="" title=""/>'
+
+                    var $post_title = $('#post-title-'+i);
+                    $post_title.html(thumbnail + ' - <a href="'+link[0]+'">'+post_data.title+'</a>');
+
+                    // Sort posts to show newest first
+                    var $divs = $("div.post-wrapper");
+                    var numericallyOrderedDivs = $divs.sort(function (a, b) {
+                            return $(a).data('posted') < $(b).data('posted');
+                        });
+                    $("#posts").html(numericallyOrderedDivs);
+                    //var $post_body = $('#post-body-'+i);
+                    //$post_body.html(htmlDecode(post_data.selftext_html));
+                });
+        }
+    }); //END $.each
+ }); //END $.ajax
+</script>
+<div id="posts">
+</div>

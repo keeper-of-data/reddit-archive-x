@@ -1,0 +1,10 @@
+; Login is option but recommend
+[reddit_login]
+user = 
+pass = 
+force = false
+
+[parser]
+num_threads = 4
+save_path = ~/Downloads/reddit/
+log_path = ~/Downloads/reddit/logs/

@@ -1,0 +1,17 @@
+<script type="text/javascript">
+    getJson( "post.json" )
+        .done(function(data){
+            console.log(data);
+            var $post = $('<div class="post-field"></div>')
+            console.log(data.selftext_html);
+            var decodedData = htmlDecode(data.selftext_html.trim());
+            if( decodedData == null){
+                $post.html(data.selftext_html.trim());
+            }else{
+                $post.html(decodedData);
+            }
+            $post.appendTo('.post');
+        });
+</script>
+<div class="post">
+</div>
