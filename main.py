@@ -257,15 +257,6 @@ class RedditScraper(GeneralUtils):
             elif self.scrape['content']['all'] == 'sfw' and post['over_18'] is True:
                 return
 
-        # Check for bad folder names, only care about authors if we are saving content
-        if post['author'] in self.bad_folders and self.just_json is False:
-            post['author_original'] = post['author']
-            post['author'] = post['author'] + "_u_" + post['author']
-
-        if post['subreddit'] in self.bad_folders:
-            post['subreddit_original'] = post['subreddit']
-            post['subreddit'] = post['subreddit'] + "_r_" + post['subreddit']
-
         self.log("Current queue size: " + str(self.q.qsize()), level='debug')
 
         # Remove, we do not need this
@@ -282,6 +273,20 @@ class RedditScraper(GeneralUtils):
         # Check here if we just want the json
         #   If we do save `post` to json file and move on
         if self.just_json:
+            # Also check if the first 3 letters match
+            #  We already checked if the whole name was in bad_folders
+            # print(post['subreddit'][0:3])
+            sub = post['subreddit'][0:3]
+            sub_dir = sub
+            # Check if full sub name is in bad_folders
+            if post['subreddit'] in self.bad_folders:
+                sub_dir = sub + "_r_" + sub
+                post['subreddit_original'] = post['subreddit']
+                post['subreddit'] = sub_dir
+            # Check if only part is
+            elif sub in self.bad_folders:
+                sub_dir = sub + "_r_" + sub
+
             # Create .json savepath, filename will be created_utc_id.json
             # Create directory 3 letters deep (min length of a subreddit name)
             self.log("Saving just json for subreddit: " + post['subreddit'], level='info')
@@ -289,7 +294,7 @@ class RedditScraper(GeneralUtils):
             jjson_save_path = self.create_save_path('subreddits',
                                                     post['subreddit'][0:1],
                                                     post['subreddit'][0:2],
-                                                    post['subreddit'][0:3],
+                                                    sub_dir,
                                                     post['subreddit'],
                                                     y, m, d
                                                     )
@@ -301,6 +306,15 @@ class RedditScraper(GeneralUtils):
                 self.log("Exception [just_json]: " + post['subreddit'] + "\n" + str(e) + " " + url + "\n" + str(traceback.format_exc()), level='critical')
             # We are done here
             return
+
+        # Check for bad folder names, only care about authors if we are saving content
+        if post['author'] in self.bad_folders:
+            post['author_original'] = post['author']
+            post['author'] = post['author'] + "_u_" + post['author']
+
+        if post['subreddit'] in self.bad_folders:
+            post['subreddit_original'] = post['subreddit']
+            post['subreddit'] = post['subreddit'] + "_r_" + post['subreddit']
 
         ###
         # Used for linking on other pages
