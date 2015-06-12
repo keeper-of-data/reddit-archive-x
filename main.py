@@ -115,7 +115,7 @@ class GetFailed(GeneralUtils):
 
 class RedditScraper(GeneralUtils):
 
-    def __init__(self, reddit_data, scrape, save_path, num_threads):
+    def __init__(self, reddit_data, save_path, num_threads):
         super().__init__()
         self.base_dir = self.norm_path(save_path)
         self.download_path = self.create_save_path("temp", "downloads")
@@ -135,7 +135,10 @@ class RedditScraper(GeneralUtils):
         self.failed_domain_file = os.path.join(self.base_dir, 'logs', 'failed_domains.csv')
 
         # Dict of users and subreddits to scrape
-        self.scrape = scrape
+        self.scrape = {}
+
+        # load content into self.scrape
+        self.load_scrape_config()
 
         # Add static templates to use
         self.static = StaticTemplates()
@@ -161,7 +164,7 @@ class RedditScraper(GeneralUtils):
         try:
             stream = praw.helpers.submission_stream(self.reddit.r, 'all', 100, 0)
             for item in stream:
-                self.cprint("Waiting for posts to come in")
+                # self.cprint("Waiting for posts to come in")
                 self.q.put(item)
             self.q.join()
         except InterruptedError:
@@ -178,6 +181,44 @@ class RedditScraper(GeneralUtils):
         except Exception as e:
             self.log("Exception in main for posts: " + str(e) + "\n" + str(traceback.format_exc()), level='critical')
 
+    def load_scrape_config(self):
+        """
+        Load scrape.ini config file into self.scrape
+        This will run every n seconds to get any updates to the config in its own thread
+        """
+        # Read scrap config file
+        scrape_config_file = './configs/scrape.ini'
+        if not os.path.isfile(scrape_config_file):
+            self.cprint("\nScrape config file not found: " + scrape_config_file, log=True)
+        config.read(scrape_config_file)
+
+        temp_scrape = {'subreddits': [], 'users': [], 'content': {}}
+
+        # Break down the params in the user and subreddit lists
+        for feed in ['users', 'subreddits']:
+            for subreddit in config['scrape'][feed].split("\n"):
+                option = subreddit.lower().split(',')
+                temp_scrape[feed].append(option[0].strip())
+                if len(option) > 1:
+                    temp_scrape['content'][option[0].strip()] = option[1].strip().lower()
+
+        # Cpoy temp_scrape to self.scrape
+        self.scrape = temp_scrape.copy()
+
+        self.log("Reloaded scape config: " + str(self.scrape['subreddits']), level='debug')
+
+        # Check to see if both the subreddit and user lists are blank
+        #   If so exit the script as there is no reason to run
+        if (len(temp_scrape['users']) == 1 and temp_scrape['users'][0] == '') and (len(temp_scrape['subreddits'])  == 1 and temp_scrape['subreddits'][0] == ''):
+            self.cprint("You have no users or subreddits in ./configs/scrape.ini", log=True)
+        else:
+            self.cprint("Searching for posts", log=True)
+
+        # Reload again in n seconds
+        t_reload = threading.Timer(10, self.load_scrape_config)
+        t_reload.setDaemon(True)
+        t_reload.start()
+
     def parse_post(self, raw_post):
         """
         Process post
@@ -188,12 +229,12 @@ class RedditScraper(GeneralUtils):
             post['author'] = raw_post.author.name
         else:
             post['author'] = '[deleted]'
-        post['subreddit'] = raw_post.subreddit.display_name
+        post['subreddit'] = raw_post.subreddit.display_name.lower()
 
         # Check if we even want this post
         if 'all' not in self.scrape['subreddits']:
             if post['subreddit'] not in self.scrape['subreddits'] and \
-               post['author'] not in self.scrape['subreddits']:
+               post['author'].lower() not in self.scrape['subreddits']:
                 # This is not the post we are looking for, move along
                 return
 
@@ -425,16 +466,6 @@ if __name__ == "__main__":
     # Check save path
     save_path = utils.create_path(os.path.expanduser(config['parser']['save_path']), is_dir=True)
 
-    scrape_dict = {'subreddits': [], 'users': [], 'content': {}}
-
-    # Break down the params in the user and subreddit lists
-    for feed in ['users', 'subreddits']:
-        for subreddit in config['scrape'][feed].split("\n"):
-            option = subreddit.split(',')
-            scrape_dict[feed].append(option[0].strip())
-            if len(option) > 1:
-                scrape_dict['content'][option[0].strip()] = option[1].strip().lower()
-
     lock_file = os.path.join(save_path, "running.lock")
 
     # Get number of threads to use from config
@@ -447,6 +478,6 @@ if __name__ == "__main__":
         get_failed = GetFailed(save_path, num_threads)
     else:
         check_lock_file(lock_file)
-        reddit = RedditScraper(config['reddit_login'], scrape_dict, save_path, num_threads)
+        reddit = RedditScraper(config['reddit_login'], save_path, num_threads)
         # Remove lock file when we are done
         os.remove(lock_file)
