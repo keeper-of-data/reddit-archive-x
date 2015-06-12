@@ -444,16 +444,16 @@ class RedditScraper(GeneralUtils):
         Every run, create/update the static files
         """
         save_path_js = self.create_base_path("assets", "js")
-        self.copy_file("./static_assets/js/jquery.js", save_path_js + "jquery.js")
-        self.copy_file("./static_assets/js/csvToArray.js", save_path_js + "csvToArray.js")
-        self.copy_file("./static_assets/js/functions.js", save_path_js + "functions.js")
+        self.copy_file("./static_assets/js/jquery.js", os.path.join(save_path_js, "jquery.js"))
+        self.copy_file("./static_assets/js/csvToArray.js", os.path.join(save_path_js, "csvToArray.js"))
+        self.copy_file("./static_assets/js/functions.js", os.path.join(save_path_js, "functions.js"))
 
         save_path_css = self.create_base_path("assets", "css")
-        self.copy_file("./static_assets/css/styles.css", save_path_css + "styles.css")
+        self.copy_file("./static_assets/css/styles.css", os.path.join(save_path_css, "styles.css"))
 
         save_path_templates = self.create_base_path("assets", "templates")
-        self.copy_file("./static_assets/templates/csv_viewer.html", save_path_templates + "csv_viewer.html")
-        self.copy_file("./static_assets/templates/post_viewer.html", save_path_templates + "post_viewer.html")
+        self.copy_file("./static_assets/templates/csv_viewer.html", os.path.join(save_path_templates, "csv_viewer.html"))
+        self.copy_file("./static_assets/templates/post_viewer.html", os.path.join(save_path_templates, "post_viewer.html"))
 
     def cleanup(self):
         self.reddit.close()
