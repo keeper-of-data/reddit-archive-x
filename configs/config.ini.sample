@@ -8,3 +8,4 @@ force = false
 num_threads = 4
 save_path = ~/Downloads/reddit/
 log_path = ~/Downloads/reddit/logs/
+just_json = false
