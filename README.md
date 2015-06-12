@@ -6,6 +6,10 @@ Supports both users and subreddits
 
 The script will stream everything from /r/all as it happens and only grab the post if it is a subreddit or user that you are following  
 
+
+In the config file there is an option called `just_json`. If `true` this will only download the json data for the post and save it. It is best used with just the subreddit `all` in the subreddit list (can be any list of subreddits).
+
+
 Content filtering is now supported for subreddits. This is done by adding `,nsfw` or `,sfw` after a subreddit.  
 In the example below:
 - `pics` will only save posts tagged `nsfw`

@@ -115,10 +115,12 @@ class GetFailed(GeneralUtils):
 
 class RedditScraper(GeneralUtils):
 
-    def __init__(self, reddit_data, save_path, num_threads):
+    def __init__(self, reddit_data, save_path, num_threads, is_just_json):
         super().__init__()
         self.base_dir = self.norm_path(save_path)
-        self.download_path = self.create_save_path("temp", "downloads")
+
+        # Do we only want the json files?
+        self.just_json = is_just_json
 
         # Thread life
         self.num_threads = num_threads
@@ -128,23 +130,28 @@ class RedditScraper(GeneralUtils):
         self.reddit = RedditData(reddit_data, scraper_name)
         self.reddit.login()
 
-        # Setup external scraper
-        self.ed = ExternalDownload(self.base_dir, self.download_path)
+        # We only need the static files if we are downloading the content as well
+        if self.just_json is False:
+            # Create a temp downloads folder
+            self.download_path = self.create_save_path("temp", "downloads")
 
-        # Create failed domain down path
-        self.failed_domain_file = os.path.join(self.base_dir, 'logs', 'failed_domains.csv')
+            # Add static templates to use
+            self.static = StaticTemplates()
+
+            # Create/update static assets
+            self.gen_static_files()
+
+            # Setup external scraper
+            self.ed = ExternalDownload(self.base_dir, self.download_path)
+
+            # Create failed domain down path
+            self.failed_domain_file = os.path.join(self.base_dir, 'logs', 'failed_domains.csv')
 
         # Dict of users and subreddits to scrape
         self.scrape = {}
 
         # load content into self.scrape
         self.load_scrape_config()
-
-        # Add static templates to use
-        self.static = StaticTemplates()
-
-        # Create/update static assets
-        self.gen_static_files()
 
         # Run parser
         self.main()
@@ -162,9 +169,8 @@ class RedditScraper(GeneralUtils):
             worker.start()
 
         try:
-            stream = praw.helpers.submission_stream(self.reddit.r, 'all', 100, 0)
+            stream = praw.helpers.submission_stream(self.reddit.r, 'all', None, 0)
             for item in stream:
-                # self.cprint("Waiting for posts to come in")
                 self.q.put(item)
             self.q.join()
         except InterruptedError:
@@ -263,6 +269,27 @@ class RedditScraper(GeneralUtils):
         m = str(created.month)
         d = str(created.day)
         utc_str = str(int(post['created_utc']))
+
+        # Check here if we just want the json
+        #   If we do save `post` to json file and move on
+        if self.just_json:
+            # Create .json savepath, filename will be created_utc_id.json
+            # Create directory 3 letters deep (min length of a subreddit name)
+            jjson_save_path = self.create_save_path('subreddits',
+                                                    post['subreddit'][0],
+                                                    post['subreddit'][1],
+                                                    post['subreddit'][2],
+                                                    post['subreddit'],
+                                                    y, m, d
+                                                    )
+            # Save json data
+            jjson_save_file = os.path.join(jjson_save_path, utc_str + "_" + post['id'] + ".json")
+            try:
+                self.save_file(jjson_save_file, post, content_type='json')
+            except Exception as e:
+                self.log("Exception [just_json]: " + str(e) + " " + url + "\n" + str(traceback.format_exc()), level='critical')
+            # We are done here
+            return
 
         ###
         # Used for linking on other pages
@@ -466,6 +493,24 @@ if __name__ == "__main__":
     # Check save path
     save_path = utils.create_path(os.path.expanduser(config['parser']['save_path']), is_dir=True)
 
+    # Just json
+    is_just_json = False
+    if config['parser']['just_json'].strip().lower() == 'true':
+        is_just_json = True
+        # make sure that we are not saving in a dir where reddit content is saved
+        if os.path.isdir(os.path.join(save_path, "user")):
+            print("The save directory seems to be where you save reddit content\n \
+                   Please pick a location that will be just for json files.")
+            sys.exit(0)
+        # Create file to say this is a json only directory
+        open(os.path.join(save_path, "only_json.lock"), 'a').close()
+    else:
+        # Make sure we are not saving content where we only save json files
+        if os.path.isfile(os.path.join(save_path, "only_json.lock")):
+            print("The save directory seems to be where you only save json files\n \
+                   Please pick a location that will be just for saving content.")
+            sys.exit(0)
+
     lock_file = os.path.join(save_path, "running.lock")
 
     # Get number of threads to use from config
@@ -478,6 +523,6 @@ if __name__ == "__main__":
         get_failed = GetFailed(save_path, num_threads)
     else:
         check_lock_file(lock_file)
-        reddit = RedditScraper(config['reddit_login'], save_path, num_threads)
+        reddit = RedditScraper(config['reddit_login'], save_path, num_threads, is_just_json)
         # Remove lock file when we are done
         os.remove(lock_file)
