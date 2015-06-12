@@ -114,7 +114,7 @@ class ExternalDownload(GeneralUtils):
         elif domain in ['youtube.com', 'youtu.be', 'vid.me', 'vimeo.com']:
             file_list = self._youtube_dl(url, user_files_save_path)
 
-        self.log("Returned file list [external_downloads]: " + str(file_list), level='debug')
+        # self.log("Returned file list [external_downloads]: " + str(file_list), level='debug')
         return file_list
 
     ##########
@@ -233,6 +233,8 @@ class ExternalDownload(GeneralUtils):
             self.log("ExtractorError [_youtube_dl]: " + str(e) + " " + url, level='error')
         except youtube_dl.utils.DownloadError as e:
             self.log("DownloadError [_youtube_dl]: " + str(e) + " " + url, level='error')
+        except Exception as e:
+            self.log("Exception [_youtube_dl]: " + str(e) + " " + url + "\n" + str(traceback.format_exc()), level='error')
         else:
             saved_image_list = self._process_dl_files([temp_file], user_files_save_path)
 
@@ -302,12 +304,12 @@ class ExternalDownload(GeneralUtils):
         """
         # Get file hash
         file_hash = self._get_file_hash(temp_file)
-        self.log("_post_process [external_downloads] file hash: " + file_hash, level='debug')
+        # self.log("_post_process [external_downloads] file hash: " + file_hash, level='debug')
         # Get file ext
         file_ext = temp_file.split('.')[-1]
         # Create hash folders for new save path
         hashed_save_path = self._create_hash_folders(user_files_save_path, file_hash)
-        self.log("_post_process [external_downloads] hashed save path: " + hashed_save_path, level='debug')
+        # self.log("_post_process [external_downloads] hashed save path: " + hashed_save_path, level='debug')
         new_save_file = os.path.join(hashed_save_path, file_hash + "." + file_ext)
         # Move temp file to new save location
         self._move_file(temp_file, self.create_path(new_save_file))

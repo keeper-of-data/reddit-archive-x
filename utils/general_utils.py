@@ -5,7 +5,7 @@ import urllib
 import shutil
 import logging
 import traceback
-from threading import Lock
+import threading
 from datetime import datetime
 
 
@@ -15,9 +15,8 @@ class GeneralUtils:
         # Get loggers
         self.logger = logging.getLogger('root')
 
-        # Lock file access or makedir functions when in use
+        # Lock file access when in use
         self.file_lock = {}
-        self.dir_lock = Lock()
 
         # So we know how long the prev string printed was
         self.prev_cstr = ''
@@ -50,18 +49,20 @@ class GeneralUtils:
         :param is_dir: pass True if we are passing in a directory, default = False
         :return: os safe path from `path`
         """
-        self.dir_lock.acquire()
-        try:
-            path = self.norm_path(path)
-            path_check = path
-            if not is_dir:
-                path_check = os.path.dirname(path)
+        path = self.norm_path(path)
+        path_check = path
+        does_path_exists = os.path.exists(path_check)
 
-            does_path_exists = os.path.exists(path_check)
-            if not does_path_exists:
-                os.makedirs(path_check)
-        finally:
-            self.dir_lock.release()
+        if not is_dir:
+            path_check = os.path.dirname(path)
+
+        if does_path_exists:
+            return path
+
+        try:
+            os.makedirs(path_check)
+        except OSError:
+            pass
 
         return path
 
@@ -97,6 +98,15 @@ class GeneralUtils:
         :param args: List of items to create into a path
         """
         path = "/".join(args)
+        path = self.norm_path(path)
+        return path
+
+    def create_base_path(self, *args):
+        """
+        Creates directory of any dirs passed in on args and appends to base_dir
+        :param args: List of items to create into a path
+        """
+        path = os.path.join(self.base_dir, "./" + "/".join(args))
         path = self.norm_path(path)
         return path
 
@@ -138,15 +148,19 @@ class GeneralUtils:
         """
         # Blank out whole line
         #   The +1 is ther just to make sure it clears all chars
-        print(" "*(len(self.prev_cstr) + 1), end='\r')
+        cstr = "Queue: " + str(self.q.qsize()) + " - " + cstr
+        num_spaces = 0
+        if len(cstr) < len(self.prev_cstr):
+            num_spaces = abs(len(self.prev_cstr) - len(cstr))
         self.prev_cstr = cstr
         try:
-            print(cstr, end='\r')
+            print(cstr + " "*num_spaces, end='\r')
         except UnicodeEncodeError:
             print('Processing...', end='\r')
 
         if log:
-            self.log(cstr)
+            pass
+            # self.log(cstr)
 
     def log(self, msg, level='info'):
         """
@@ -156,7 +170,8 @@ class GeneralUtils:
         """
         msg = msg.strip()
         if level == 'debug':
-            self.logger.debug(msg)
+            pass
+            # self.logger.debug(msg)
         elif level == 'critical':
             self.logger.critical(msg)
         elif level == 'error':
@@ -192,7 +207,7 @@ class GeneralUtils:
         file_dict_name = pattern.sub('', save_file)
         # Create perfile Lock
         if file_dict_name not in self.file_lock:
-            self.file_lock[file_dict_name] = Lock()
+            self.file_lock[file_dict_name] = threading.Lock()
         self.file_lock[file_dict_name].acquire()
         try:
             with open(self.create_path(save_file), 'a') as f:

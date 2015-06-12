@@ -289,7 +289,7 @@ class RedditScraper(GeneralUtils):
             # Create directory 3 letters deep (min length of a subreddit name)
             self.log("Saving just json for subreddit: " + post['subreddit'], level='info')
             # Make sure the subreddit cannot create the folder `con` (Windows bug)
-            jjson_save_path = self.create_save_path('subreddits',
+            jjson_save_path = self.create_base_path('subreddits',
                                                     post['subreddit'][0:1],
                                                     post['subreddit'][0:2],
                                                     sub_dir,
@@ -322,10 +322,10 @@ class RedditScraper(GeneralUtils):
         ###
         # Used to save files/content
         ###
-        post['user_save_path'] = self.create_save_path(post['user_web_path'])
-        post['post_save_path'] = self.create_save_path(post['post_web_path'])
+        post['user_save_path'] = self.create_base_path(post['user_web_path'])
+        post['post_save_path'] = self.create_base_path(post['post_web_path'])
 
-        post_json_file = post['post_save_path'] + "post.json"
+        post_json_file = os.path.join(post['post_save_path'], "post.json")
 
         ###
         # If we already have the post then skip it
@@ -365,7 +365,7 @@ class RedditScraper(GeneralUtils):
                 '''
                 failed_content = post['domain'] + "," + post['url'] + "," + post['post_save_path']
                 self.append_file(self.failed_domain_file, failed_content)
-                self.log("Domain: " + post['domain'] + " post: " + post['post_save_path'], level='error')
+                # self.log("Domain: " + post['domain'] + " post: " + post['post_save_path'], level='error')
 
         ###
         # Now save post data to json
@@ -377,24 +377,24 @@ class RedditScraper(GeneralUtils):
         # Create post html file
         ###
         self.log("Creating post html file: " + post['post_web_path'], level='info')
-        self.save_file(post['post_save_path'] + "index.html", self.static.gen_frame('post_viewer'), content_type='html')
+        self.save_file(os.path.join(post['post_save_path'], "index.html"), self.static.gen_frame('post_viewer'), content_type='html')
 
         url_appends = []
         ###
         # Add post to user urls
         ###
-        user_post_base = self.create_joined_path('user', post['author'][0], post['author'], 'posts')
-        url_appends.append(self.create_save_path(user_post_base, y))
-        url_appends.append(self.create_save_path(user_post_base, y, m))
-        url_appends.append(self.create_save_path(user_post_base, y, m, d))
+        user_post_base = self.create_base_path('user', post['author'][0], post['author'], 'posts')
+        url_appends.append(self.create_joined_path(user_post_base, y))
+        url_appends.append(self.create_joined_path(user_post_base, y, m))
+        url_appends.append(self.create_joined_path(user_post_base, y, m, d))
 
         ###
         # Add post to subreddit urls
         ###
-        subreddit_post_base = self.create_joined_path('subreddit', post['subreddit'][0], post['subreddit'])
-        url_appends.append(self.create_save_path(subreddit_post_base, y))
-        url_appends.append(self.create_save_path(subreddit_post_base, y, m))
-        url_appends.append(self.create_save_path(subreddit_post_base, y, m, d))
+        subreddit_post_base = self.create_base_path('subreddit', post['subreddit'][0], post['subreddit'])
+        url_appends.append(self.create_joined_path(subreddit_post_base, y))
+        url_appends.append(self.create_joined_path(subreddit_post_base, y, m))
+        url_appends.append(self.create_joined_path(subreddit_post_base, y, m, d))
 
         ###
         # Append urls to correct urls.csv files
@@ -402,7 +402,7 @@ class RedditScraper(GeneralUtils):
         for path in url_appends:
             self.append_file(os.path.join(path, 'urls.csv'), post['post_web_path'])
             self.check_view_index(path)
-            self.log("Added " + post['post_web_path'] + " to " + path, level='debug')
+            # self.log("Added " + post['post_web_path'] + " to " + path, level='debug')
 
         # Done doing things here
         return True
@@ -411,9 +411,9 @@ class RedditScraper(GeneralUtils):
         """
         Add new user to the system
         """
-        self.log("Adding new user: " + post['author'], level='info')
+        # self.log("Adding new user: " + post['author'], level='info')
         # Create html redirect in users root to ./posts/
-        self.save_file(post['user_save_path'] + "index.html", self.static.gen_redirect("./posts"), content_type='html')
+        self.save_file(os.path.join(post['user_save_path'], "index.html"), self.static.gen_redirect("./posts"), content_type='html')
 
     def check_view_index(self, path):
         """
@@ -422,7 +422,7 @@ class RedditScraper(GeneralUtils):
         """
         index_view_file = os.path.join(path, 'index.html')
         if not os.path.isfile(index_view_file):
-            self.log("Creating view index at: " + index_view_file, level='debug')
+            # self.log("Creating view index at: " + index_view_file, level='debug')
             self.save_file(index_view_file, self.static.gen_frame('csv_viewer'), content_type='html')
 
     def create_web_path(self, base, *args, path_type=''):
@@ -443,15 +443,15 @@ class RedditScraper(GeneralUtils):
         """
         Every run, create/update the static files
         """
-        save_path_js = self.create_save_path("assets", "js")
+        save_path_js = self.create_base_path("assets", "js")
         self.copy_file("./static_assets/js/jquery.js", save_path_js + "jquery.js")
         self.copy_file("./static_assets/js/csvToArray.js", save_path_js + "csvToArray.js")
         self.copy_file("./static_assets/js/functions.js", save_path_js + "functions.js")
 
-        save_path_css = self.create_save_path("assets", "css")
+        save_path_css = self.create_base_path("assets", "css")
         self.copy_file("./static_assets/css/styles.css", save_path_css + "styles.css")
 
-        save_path_templates = self.create_save_path("assets", "templates")
+        save_path_templates = self.create_base_path("assets", "templates")
         self.copy_file("./static_assets/templates/csv_viewer.html", save_path_templates + "csv_viewer.html")
         self.copy_file("./static_assets/templates/post_viewer.html", save_path_templates + "post_viewer.html")
 
@@ -460,12 +460,8 @@ class RedditScraper(GeneralUtils):
 
 
 def signal_handler(signum, frame):
-    global save_path
     print("Quit the running process and clean up")
-    try:
-        os.removedirs(os.path.join(save_path, "files", "downloads"))
-    except OSError:
-        pass
+    sys.exit(0)
 
 
 def check_lock_file(lock_file):
