@@ -275,17 +275,15 @@ class RedditScraper(GeneralUtils):
         if self.just_json:
             # Also check if the first 3 letters match
             #  We already checked if the whole name was in bad_folders
-            # print(post['subreddit'][0:3])
+
             sub = post['subreddit'][0:3]
             sub_dir = sub
             # Check if full sub name is in bad_folders
-            if post['subreddit'] in self.bad_folders:
+            if sub in self.bad_folders or post['subreddit'] in self.bad_folders:
                 sub_dir = sub + "_r_" + sub
-                post['subreddit_original'] = post['subreddit']
-                post['subreddit'] = sub_dir
-            # Check if only part is
-            elif sub in self.bad_folders:
-                sub_dir = sub + "_r_" + sub
+                if post['subreddit'] in self.bad_folders:
+                    post['subreddit_original'] = post['subreddit']
+                    post['subreddit'] = sub_dir
 
             # Create .json savepath, filename will be created_utc_id.json
             # Create directory 3 letters deep (min length of a subreddit name)
