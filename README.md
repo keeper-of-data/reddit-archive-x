@@ -6,7 +6,7 @@ Supports both users and subreddits
 
 The script will stream everything from /r/all as it happens and only grab the post if it is a subreddit or user that you are following  
 
-Content filtering is now supported for subreddits. This is done by adding `.nsfw` or `,sfw` after a subreddit.  
+Content filtering is now supported for subreddits. This is done by adding `,nsfw` or `,sfw` after a subreddit.  
 In the example below:
 - `pics` will only save posts tagged `nsfw`
 - `gif` will download all content
