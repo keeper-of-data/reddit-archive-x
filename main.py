@@ -257,6 +257,15 @@ class RedditScraper(GeneralUtils):
             elif self.scrape['content']['all'] == 'sfw' and post['over_18'] is True:
                 return
 
+        # Check for bad folder names, only care about authors if we are saving content
+        if post['author'] in self.bad_folders and self.just_json is False:
+            post['author_original'] = post['author']
+            post['author'] = post['author'] + "_u_" + post['author']
+
+        if post['subreddit'] in self.bad_folders:
+            post['subreddit_original'] = post['subreddit']
+            post['subreddit'] = post['subreddit'] + "_r_" + post['subreddit']
+
         self.log("Current queue size: " + str(self.q.qsize()), level='debug')
 
         # Remove, we do not need this
@@ -275,10 +284,12 @@ class RedditScraper(GeneralUtils):
         if self.just_json:
             # Create .json savepath, filename will be created_utc_id.json
             # Create directory 3 letters deep (min length of a subreddit name)
+            self.log("Saving just json for subreddit: " + post['subreddit'], level='info')
+            # Make sure the subreddit cannot create the folder `con` (Windows bug)
             jjson_save_path = self.create_save_path('subreddits',
-                                                    post['subreddit'][0],
-                                                    post['subreddit'][1],
-                                                    post['subreddit'][2],
+                                                    post['subreddit'][0:1],
+                                                    post['subreddit'][0:2],
+                                                    post['subreddit'][0:3],
                                                     post['subreddit'],
                                                     y, m, d
                                                     )
@@ -287,7 +298,7 @@ class RedditScraper(GeneralUtils):
             try:
                 self.save_file(jjson_save_file, post, content_type='json')
             except Exception as e:
-                self.log("Exception [just_json]: " + str(e) + " " + url + "\n" + str(traceback.format_exc()), level='critical')
+                self.log("Exception [just_json]: " + post['subreddit'] + "\n" + str(e) + " " + url + "\n" + str(traceback.format_exc()), level='critical')
             # We are done here
             return
 
