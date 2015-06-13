@@ -347,8 +347,11 @@ class RedditScraper(GeneralUtils):
         if len(post['thumbnail']) > 0 and post['thumbnail'].startswith('http'):
             post['thumbnail_original'] = post['thumbnail']
             self.log("Download thumbnail " + post['thumbnail'] + " for post " + post['post_web_path'])
-            thumbnail_download = self.ed.download('thumbnail', post['thumbnail_original'], post['user_save_path'])[0]
-            post['thumbnail'] = self.save_to_web_path(thumbnail_download)
+            download_response = self.ed.download('thumbnail', post['thumbnail_original'], post['user_save_path'])
+            # If the thumbnail does not doenload then download_responce would have lenght 0
+            if len(download_response) > 0:
+                thumbnail_download = download_response[0]
+                post['thumbnail'] = self.save_to_web_path(thumbnail_download)
 
         ###
         # Process post data and download any media needed
