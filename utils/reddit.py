@@ -6,7 +6,7 @@ from utils.general_utils import GeneralUtils
 class RedditData(GeneralUtils):
 
     def __init__(self, reddit_data, parser_name):
-        super().__init__()
+        super().__init__('root')
         self.user = reddit_data['user']
         self.passwd = reddit_data['pass']
         if reddit_data['force'].lower().title() == "True":

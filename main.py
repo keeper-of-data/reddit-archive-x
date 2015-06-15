@@ -19,10 +19,24 @@ from utils.external_download import ExternalDownload
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
+class TestUrl(GeneralUtils):
+
+    def __init__(self, save_path, test_url):
+        super().__init__('test')
+        self.base_dir = self.norm_path(save_path)
+        self.download_path = self.create_save_path("download")
+
+        # Setup external scraper
+        self.ed = ExternalDownload(self.base_dir, self.download_path, 'test')
+        print("Starting download")
+        flist = self.ed.download(test_url, self.base_dir)
+        print(flist)
+
+
 class GetFailed(GeneralUtils):
 
     def __init__(self, save_path, num_threads):
-        super().__init__()
+        super().__init__('root')
         self.base_dir = self.norm_path(save_path)
         self.download_path = self.create_save_path("temp", "re-downloads")
 
@@ -50,7 +64,7 @@ class GetFailed(GeneralUtils):
         self.main()
 
         # Cleanup
-        slef.sleanup()
+        self.cleanup()
 
     def main(self):
 
@@ -116,7 +130,7 @@ class GetFailed(GeneralUtils):
 class RedditScraper(GeneralUtils):
 
     def __init__(self, reddit_data, save_path, num_threads, is_just_json):
-        super().__init__()
+        super().__init__('root')
         self.base_dir = self.norm_path(save_path)
 
         # Do we only want the json files?
@@ -142,7 +156,7 @@ class RedditScraper(GeneralUtils):
             self.gen_static_files()
 
             # Setup external scraper
-            self.ed = ExternalDownload(self.base_dir, self.download_path)
+            self.ed = ExternalDownload(self.base_dir, self.download_path, 'root')
 
             # Create failed domain down path
             self.failed_domain_file = os.path.join(self.base_dir, 'logs', 'failed_domains.csv')
@@ -257,8 +271,6 @@ class RedditScraper(GeneralUtils):
             elif self.scrape['content']['all'] == 'sfw' and post['over_18'] is True:
                 return
 
-        self.log("Current queue size: " + str(self.q.qsize()), level='debug')
-
         # Remove, we do not need this
         post.pop('reddit_session')
 
@@ -278,12 +290,13 @@ class RedditScraper(GeneralUtils):
 
             sub = post['subreddit'][0:3]
             sub_dir = sub
-            # Check if full sub name is in bad_folders
+            # Check if first 3 letters of sub name is in bad_folders
             if sub in self.bad_folders or post['subreddit'] in self.bad_folders:
                 sub_dir = sub + "_r_" + sub
-                if post['subreddit'] in self.bad_folders:
-                    post['subreddit_original'] = post['subreddit']
-                    post['subreddit'] = sub_dir
+            # Check if full sub name is in bad_folders
+            if post['subreddit'] in self.bad_folders:
+                post['subreddit_original'] = post['subreddit']
+                post['subreddit'] = sub_dir
 
             # Create .json savepath, filename will be created_utc_id.json
             # Create directory 3 letters deep (min length of a subreddit name)
@@ -301,7 +314,7 @@ class RedditScraper(GeneralUtils):
             try:
                 self.save_file(jjson_save_file, post, content_type='json')
             except Exception as e:
-                self.log("Exception [just_json]: " + post['subreddit'] + "\n" + str(e) + " " + url + "\n" + str(traceback.format_exc()), level='critical')
+                self.log("Exception [just_json]: " + post['subreddit'] + "\n" + str(e) + " " + post['id'] + "\n" + str(traceback.format_exc()), level='critical')
             # We are done here
             return
 
@@ -339,16 +352,15 @@ class RedditScraper(GeneralUtils):
         if not os.path.isfile(post['user_save_path'] + "user.json"):
             self.add_new_user(post)
 
-        self.cprint("Getting post " + post['id'] + " by: " + post['author'], log=True)
+        self.cprint("Getting post " + post['id'] + " by: " + post['author'])
 
         ###
         # Download thumbnail if there is one
         ###
         if len(post['thumbnail']) > 0 and post['thumbnail'].startswith('http'):
             post['thumbnail_original'] = post['thumbnail']
-            self.log("Download thumbnail " + post['thumbnail'] + " for post " + post['post_web_path'])
-            download_response = self.ed.download('thumbnail', post['thumbnail_original'], post['user_save_path'])
-            # If the thumbnail does not doenload then download_responce would have lenght 0
+            download_response = self.ed.download(post['thumbnail_original'], post['user_save_path'])
+            # If the thumbnail does not download then download_responce would have lenght 0
             if len(download_response) > 0:
                 thumbnail_download = download_response[0]
                 post['thumbnail'] = self.save_to_web_path(thumbnail_download)
@@ -357,29 +369,17 @@ class RedditScraper(GeneralUtils):
         # Process post data and download any media needed
         ###
         if post['is_self'] is False:
-            # Try download from this domain
-            if self.ed.check_domain(post['domain'], post['url']):
-                post = self.download_content(post)
-            else:
-                # We could not download form domain
-                post['selftext_html'] = '''
-                    <h2>Files could not be downloaded at this time from the domain: ''' + post['domain'] + '''</<h2>
-                    <div><a href="''' + post['url'] + '''">External Link</div>
-                '''
-                failed_content = post['domain'] + "," + post['url'] + "," + post['post_save_path']
-                self.append_file(self.failed_domain_file, failed_content)
-                # self.log("Domain: " + post['domain'] + " post: " + post['post_save_path'], level='error')
+            # Try to save the content
+            post = self.download_content(post)
 
         ###
         # Now save post data to json
         ###
-        self.log("Adding new post: " + post['post_web_path'], level='info')
         self.save_file(post_json_file, post, content_type='json')
 
         ###
         # Create post html file
         ###
-        self.log("Creating post html file: " + post['post_web_path'], level='info')
         self.save_file(os.path.join(post['post_save_path'], "index.html"), self.static.gen_frame('post_viewer'), content_type='html')
 
         url_appends = []
@@ -464,7 +464,6 @@ class RedditScraper(GeneralUtils):
 
 def signal_handler(signum, frame):
     print("Quit the running process and clean up")
-    sys.exit(0)
 
 
 def check_lock_file(lock_file):
@@ -486,10 +485,11 @@ if __name__ == "__main__":
     # Get any args that got passed in
     parser = argparse.ArgumentParser()
     parser.add_argument('--get_failed', action='store_true')
+    parser.add_argument('--test_url', nargs=2)
     args = parser.parse_args()
 
     # Get access to some helper functions
-    utils = GeneralUtils()
+    utils = GeneralUtils('root')
     config = configparser.ConfigParser()
     # Read main config file
     config_file = './configs/config.ini'
@@ -543,6 +543,11 @@ if __name__ == "__main__":
     # Do something based on the arg passed
     if args.get_failed:
         get_failed = GetFailed(save_path, num_threads)
+    elif args.test_url:
+        test_path = utils.create_path(os.path.expanduser(args.test_url[0]), is_dir=True)
+        # Create logger to use
+        test_logger = setup_custom_logger('test', os.path.join(test_path, "test_download.log"))
+        test_url = TestUrl(test_path, args.test_url[1])
     else:
         check_lock_file(lock_file)
         reddit = RedditScraper(config['reddit_login'], save_path, num_threads, is_just_json)
