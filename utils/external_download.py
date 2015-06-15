@@ -6,6 +6,8 @@ import hashlib
 import requests
 import traceback
 import youtube_dl
+import urllib.error
+import urllib.request
 from bs4 import BeautifulSoup
 from utils.general_utils import GeneralUtils
 
@@ -309,28 +311,20 @@ class ExternalDownload(GeneralUtils):
         self.log("Starting download: " + url)
         temp_file = self._create_temp_file(file_ext)
         try:
-            response = requests.get(url, headers=header, stream=True)
-            if response.status_code == 200:
-                with open(temp_file, 'wb') as f:
-                    for chunk in response.iter_content():
-                        f.write(chunk)
-                return_value = temp_file
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
+            with urllib.request.urlopen(
+              urllib.request.Request(url, headers=header)) as response, \
+                open(temp_file, 'wb') as out_file:
+                    data = response.read()
+                    out_file.write(data)
+
+            return_value = temp_file
+
+        except urllib.error.HTTPError as e:
             return_value = False
-            self.log("Error [download]: " + str(e.response.status_code) + " " + url, level='error')
-        except requests.exceptions.ConnectionError as e:
+            self.log("Error [download]: " + str(e.code) + " " + url, level='error')
+        except Exception as e:
             return_value = False
-            self.log("ConnectionError [download]: " + str(e) + " " + url, level='error')
-        except requests.exceptions.InvalidSchema as e:
-            return_value = False
-            self.log("InvalidSchema [download]: " + str(e) + " " + url, level='error')
-        except OSError as e:
-            return_value = False
-            self.log("OSError [download]: " + str(e) + " " + url, level='error') 
-        finally:
-            # https://github.com/kennethreitz/requests/issues/1882
-            response.connection.close()
+            self.log("Exception [download]: " + str(e) + " " + url, level='error')
 
         return return_value
 
