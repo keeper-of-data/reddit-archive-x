@@ -43,12 +43,24 @@ The browsable interface still has a ways to go so dont worry about that right no
 
 ## Supported External Hosts
 - Any link that links directly to a file
-- imgur.com & i/m.imgur.com
-- media.tumblr.com
+- imgur.com
 - gfycat.com
 - youtube.com
 - vid.me
 - vimeo.com
+- vidble.com
+- ~ NSFW ~
+- xvideos.com
+- xvids.us
+- xvid6.com
+- soundgasm.net
+- mrpeepers.net
+- lovefreeporn.com
+- extremetube.com
+- pornhub.com
+- xhamster.com
+- pornbot.net
+- vidbox.us
 
 
 ## Will soon support
