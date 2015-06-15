@@ -81,6 +81,8 @@ class ExternalDownload(GeneralUtils):
              re.match('.*mrpeepers\.net.*', url) or \
              re.match('.*lovefreeporn\.com.*', url) or \
              re.match('.*extremetube\.com.*', url) or \
+             re.match('.*vidbox\.us.*', url) or \
+             re.match('.*pornhub\.com.*', url) or \
              re.match('.*xhamster\.com.*', url):
              
             file_list = self._youtube_dl(url, user_files_save_path)
@@ -90,6 +92,12 @@ class ExternalDownload(GeneralUtils):
         ###
         elif re.match('.*gfycat\.com.*', url):
             file_list = self._gfycat(url, user_files_save_path)
+
+        ###
+        # Get images from vidble.com
+        ###
+        elif re.match('.*vidble\.com.*', url):
+            file_list = self._vidble(url, user_files_save_path)
 
         ###
         # Get gfycat link from pornbot.net
@@ -167,6 +175,7 @@ class ExternalDownload(GeneralUtils):
                     if re.match('.*gfycat.com.*', link):
                         gfycat_link = link
                         break
+
             except AttributeError:
                 self.log("Failed to find link on page [_pornbot]: " + url, level='error')
                 return []
@@ -221,6 +230,37 @@ class ExternalDownload(GeneralUtils):
                         imgur_url = imgur_url.split('?')[0]
                         imgur_ext = imgur_url.split('.')[-1]
                         temp_files.append(self._download_file(imgur_url, imgur_ext))
+
+            except AttributeError:
+                self.log("Failed to find images in url [_imgur]: " + url, level='error')
+                return []
+
+            saved_image_list = self._process_dl_files(temp_files, user_files_save_path)
+        return saved_image_list
+
+    def _vidble(self, url, user_files_save_path):
+        """
+        Download images from vidble.com
+        :return: List of save file paths
+        """
+        saved_image_list = []
+        temp_files = []
+        base_url = 'http://www.vidble.com/'
+
+        # Scrape the images
+        page_soup = self._get_html(url, self._url_header)
+        if page_soup is not False:
+            try:
+                content_list = page_soup.find_all("img", {"class": "img2"})
+                for content in content_list:
+                    try:
+                        image_url = base_url + content['src']
+                    except KeyError:
+                        image_url = base_url + content['data-original']
+
+                    image_ext = image_url.split('.')[-1]
+                    temp_files.append(self._download_file(image_url, image_ext))
+
             except AttributeError:
                 self.log("Failed to find images in url [_imgur]: " + url, level='error')
                 return []
