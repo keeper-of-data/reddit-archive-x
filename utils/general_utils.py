@@ -11,9 +11,10 @@ from datetime import datetime
 
 class GeneralUtils:
 
-    def __init__(self):
+    def __init__(self, logger_name):
         # Get loggers
-        self.logger = logging.getLogger('root')
+        self.log_name = logger_name
+        self.logger = logging.getLogger(self.log_name)
 
         # Lock file access when in use
         self.file_lock = {}
@@ -119,14 +120,15 @@ class GeneralUtils:
 
         self.cprint("Downloading external data for: " + post['id'] + " from " + post['domain'], log=True)
         try:
-            file_list = self.ed.download(post['domain'], post['url'], post['user_save_path'])
+            file_list = self.ed.download(post['url'], post['user_save_path'])
         except Exception as e:
             self.log("Download failed: " + str(e) + "\n" + str(traceback.format_exc()), level='error')
 
         # If file_list is empty, that means that the downloads failed and we need to tray again
-        if len(file_list) < 1:
+        if len(file_list) == 0:
             failed_content = post['domain'] + "," + post['url'] + "," + post['post_save_path']
             self.append_file(self.failed_domain_file, failed_content)
+            self.log("Failed domain: " + post['domain'] + " post: " + post['post_save_path'], level='error')
 
         # Add file list to selftext_html to be viewed
         post['selftext_html'] = '<h2>Files:</h2><a href="' + post['url'] + '">External link</a><br />'
@@ -170,8 +172,8 @@ class GeneralUtils:
         """
         msg = msg.strip()
         if level == 'debug':
-            pass
-            # self.logger.debug(msg)
+            # pass
+            self.logger.debug(msg)
         elif level == 'critical':
             self.logger.critical(msg)
         elif level == 'error':
@@ -179,6 +181,7 @@ class GeneralUtils:
         elif level == 'warning':
             self.logger.warning(msg)
         else:
+            # pass
             self.logger.info(msg)
 
         return str(msg)

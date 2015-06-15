@@ -4,6 +4,7 @@ import uuid
 import shutil
 import hashlib
 import requests
+import traceback
 import youtube_dl
 from bs4 import BeautifulSoup
 from utils.general_utils import GeneralUtils
@@ -11,25 +12,11 @@ from utils.general_utils import GeneralUtils
 
 class ExternalDownload(GeneralUtils):
 
-    def __init__(self, base_dir, download_path):
-        super().__init__()
+    def __init__(self, base_dir, download_path, logger_name):
+        super().__init__(logger_name)
         self.base_dir = base_dir
         self._url_header = {'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'}
         self._download_path = download_path
-
-        self._supported_domains = ['single_file',
-                                   'thumbnail',
-                                   'i.imgur.com',
-                                   'media.tumblr.com',
-                                   'gfycat.com',
-                                   'imgur.com',
-                                   'm.imgur.com',
-                                   'youtube.com',
-                                   'youtu.be',
-                                   'googleusercontent.com',
-                                   'vid.me',
-                                   'vimeo.com'
-                                   ]
 
         # More types here: http://fileinfo.com/filetypes/common
         self._supported_ext = [  # Video formats
@@ -38,7 +25,7 @@ class ExternalDownload(GeneralUtils):
                                    'rm', 'swf', 'vob', 'wmv',
                                  # Audio formats
                                    'mp3', 'wma', 'wav', 'ra', 'ram', 'rm',
-                                   'mid', 'ogg', 'acc'
+                                   'mid', 'ogg', 'acc', 'm4a',
                                  # Image formats
                                    'jpeg', 'jpg', 'tiff', 'rif', 'gif', 'bmp',
                                    'png', 'svg', 'gifv',
@@ -46,73 +33,69 @@ class ExternalDownload(GeneralUtils):
                                    'pdf', 'zip', 'rar', 'tar', 'gz', '7z',
                                ]
 
-    def _special_cases(self, domain, url):
-        """
-        Special domain cases
-        """
-        # always starts with a numbered subdomain
-        if domain.endswith('media.tumblr.com'):
-            domain = 'media.tumblr.com'
-
-        elif domain.endswith('googleusercontent.com'):
-            domain = 'googleusercontent.com'
-
-        elif url.split('.')[-1].lower() in self._supported_ext:
-            domain = 'single_file'
-
-        return domain
-
-    ##########
-    # STAGE 0
-    ##########
-    def check_domain(self, domain, url):
-        """
-        Used to see if we can even download
-        :return: bool
-        """
-        # Check special cases
-        if domain in self._supported_domains:
-            return True
-        elif self._special_cases(domain, url) in self._supported_domains:
-            return True
-        else:
-            return False
-
     ##########
     # STAGE 1
     ##########
-    def download(self, domain, url, user_save_path):
+    def download(self, url, user_save_path):
         """
         Called from the client
         Figure out which finction to run
         :return: list of downloaded files
         """
+        file_list = []
+        self.log(user_save_path + " " + url)
         # Make sure the url does not have a space in it with content after
         #   Reason: This happend 'http://i.imgur.com/82y5SCN.png [x-post from /r/comics]'
         url = url.split(' ')[0]
         # Sometimes the url has unconverted char in it
         url = url.replace('&amp;', '&')
 
-        if domain not in self._supported_domains:
-            # Check special cases
-            domain = self._special_cases(domain, url)
         # Where user files are stored
         user_files_save_path = os.path.join(user_save_path, "files")
-        # list of downloaded files
-        file_list = []
 
-        # Download the thumbnail using _single_image
-        if domain in ['single_file', 'thumbnail', 'i.imgur.com', 'media.tumblr.com', 'googleusercontent.com']:
+        ###
+        # Direct file links
+        ###
+        # Check to see if url is a file
+        url_temp = url.split('?')[0]
+        if url_temp.split('.')[-1].lower() in self._supported_ext:
             file_list = self._single_file(url, user_files_save_path)
 
-        elif domain in ['gfycat.com']:
-            file_list = self._gfycat(url, user_files_save_path)
-
-        elif domain in ['imgur.com', 'm.imgur.com']:
+        ###
+        # Imgur links
+        ###
+        elif re.match('.*imgur.com.*', url):
             file_list = self._imgur(url, user_files_save_path)
 
-        elif domain in ['youtube.com', 'youtu.be', 'vid.me', 'vimeo.com']:
+        ###
+        # Download using youtube-dl
+        ###
+        elif re.match('.*youtu(be\.com|\.be).*', url) or \
+             re.match('.*vid\.me.*', url) or \
+             re.match('.*vimeo\.com.*', url) or \
+             \
+             re.match('.*xvideos\.com.*', url) or \
+             re.match('.*xvids\.us.*', url) or \
+             re.match('.*xvid6\.com.*', url) or \
+             re.match('.*soundgasm\.net.*', url) or \
+             re.match('.*mrpeepers\.net.*', url) or \
+             re.match('.*lovefreeporn\.com.*', url) or \
+             re.match('.*extremetube\.com.*', url) or \
+             re.match('.*xhamster\.com.*', url):
+             
             file_list = self._youtube_dl(url, user_files_save_path)
+
+        ###
+        # Get gfycat links
+        ###
+        elif re.match('.*gfycat\.com.*', url):
+            file_list = self._gfycat(url, user_files_save_path)
+
+        ###
+        # Get gfycat link from pornbot.net
+        ###
+        elif re.match('.*pornbot\.net.*', url):
+            file_list = self._pornbot(url, user_files_save_path)
 
         # self.log("Returned file list [external_downloads]: " + str(file_list), level='debug')
         return file_list
@@ -125,7 +108,7 @@ class ExternalDownload(GeneralUtils):
         Only ever a single file
         :return: List of save file paths
         """
-        self.log("_single_file [external_downloads]", level='debug')
+        self.log("_single_file [external_downloads]: " + url, level='debug')
         temp_files = []
 
         # Some time the url will have ? in the end which we do not need
@@ -133,7 +116,8 @@ class ExternalDownload(GeneralUtils):
 
         # Download the original gif file
         if url.endswith('.gifv'):
-            url.replace('.gifv', '.gif')
+            url = url.replace('.gifv', '.gif')
+
         # Get file ext, sometimes the url has other data after the ext
         file_ext = url.split('.')[-1]
         # Add all files that need to be downloaded
@@ -161,6 +145,41 @@ class ExternalDownload(GeneralUtils):
         saved_image_list = self._process_dl_files(temp_files, user_files_save_path)
         return saved_image_list
 
+    def _pornbot(self, url, user_files_save_path):
+        """
+        Get gfycat link from page and pass to _gfycat to download and process
+        :return: List of save file paths
+        """
+        saved_image_list = []
+        gfycat_link = None
+
+        # Remove v. subdomain
+        url = url.replace('v.', '')
+
+        # Scrape the gfycat link
+        page_soup = self._get_html(url, self._url_header)
+        if page_soup is not False:
+            try:
+                content_list = page_soup.find_all("a", {"target": "_new"})
+                for content in content_list:
+                    link = content['href']
+                    # If we find the link thats it
+                    if re.match('.*gfycat.com.*', link):
+                        gfycat_link = link
+                        break
+            except AttributeError:
+                self.log("Failed to find link on page [_pornbot]: " + url, level='error')
+                return []
+
+        if gfycat_link is not None:
+            # Download file using _gfycat
+            saved_image_list = self._gfycat(gfycat_link, user_files_save_path)
+        else:
+            self.log("Failed to find link on page [_pornbot]: " + url, level='error')
+            return []
+
+        return saved_image_list
+
     def _imgur(self, url, user_files_save_path):
         """
         Download images from imgur albums or single images on page
@@ -172,10 +191,8 @@ class ExternalDownload(GeneralUtils):
         # Some time the url will have ? or # in the end which we do not need
         url = url.split('?')[0]
         url = url.split('#')[0]
+
         # Need to append /noscript to url to parse imgur.com/a/...
-        # Convert imgur.com/gallery to imgur.com/a
-        if 'imgur.com/gallery' in url:
-            url.replace('gallery', 'a')
         if '/a/' in url:
             url += "/noscript"
 
@@ -204,7 +221,7 @@ class ExternalDownload(GeneralUtils):
                         imgur_url = imgur_url.split('?')[0]
                         imgur_ext = imgur_url.split('.')[-1]
                         temp_files.append(self._download_file(imgur_url, imgur_ext))
-            except AttributeError as e:
+            except AttributeError:
                 self.log("Failed to find images in url [_imgur]: " + url, level='error')
                 return []
 
