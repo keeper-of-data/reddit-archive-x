@@ -245,7 +245,7 @@ class RedditScraper(GeneralUtils):
             post['author'] = raw_post.author.name
         else:
             post['author'] = '[deleted]'
-        post['subreddit'] = raw_post.subreddit.display_name.lower()
+        post['subreddit'] = str(raw_post.subreddit).lower()
 
         # Check if we even want this post
         if 'all' not in self.scrape['subreddits']:
