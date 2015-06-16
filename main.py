@@ -45,7 +45,7 @@ class GetFailed(GeneralUtils):
         self.q = Queue(maxsize=0)
 
         # Setup external scraper
-        self.ed = ExternalDownload(self.base_dir, self.download_path)
+        self.ed = ExternalDownload(self.base_dir, self.download_path, 'failed')
 
         # Create failed domain down path
         self.failed_domain_file_original = os.path.join(self.base_dir, 'logs', 'failed_domains.csv')
@@ -542,6 +542,7 @@ if __name__ == "__main__":
 
     # Do something based on the arg passed
     if args.get_failed:
+        failed_logger = setup_custom_logger('failed', os.path.join(log_path, "reddit_get_failed.log"))
         get_failed = GetFailed(save_path, num_threads)
     elif args.test_url:
         test_path = utils.create_path(os.path.expanduser(args.test_url[0]), is_dir=True)
