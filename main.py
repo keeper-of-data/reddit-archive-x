@@ -36,7 +36,7 @@ class TestUrl(GeneralUtils):
 class GetFailed(GeneralUtils):
 
     def __init__(self, save_path, num_threads):
-        super().__init__('root')
+        super().__init__('failed')
         self.base_dir = self.norm_path(save_path)
         self.download_path = self.create_save_path("temp", "re-downloads")
 
@@ -48,14 +48,14 @@ class GetFailed(GeneralUtils):
         self.ed = ExternalDownload(self.base_dir, self.download_path, 'failed')
 
         # Create failed domain down path
-        self.failed_domain_file_original = os.path.join(self.base_dir, 'logs', 'failed_domains.csv')
-        if not os.path.isfile(self.failed_domain_file_original):
+        self.failed_domain_file = os.path.join(self.base_dir, 'logs', 'failed_domains.csv')
+        if not os.path.isfile(self.failed_domain_file):
             # If there is no failed domain file then we have nothing to do
             return
 
         # Rename file so we dont confilct with anything new added
-        self.failed_domain_file = self.failed_domain_file_original + ".backloging"
-        os.rename(self.failed_domain_file_original, self.failed_domain_file)
+        self.failed_domain_file_failed = self.failed_domain_file + ".backloging"
+        os.rename(self.failed_domain_file, self.failed_domain_file_failed)
 
         # New failed domains list
         self.failed_domain_list = []
@@ -69,7 +69,7 @@ class GetFailed(GeneralUtils):
     def main(self):
 
         # Read in failed content
-        with open(self.failed_domain_file) as f:
+        with open(self.failed_domain_file_failed) as f:
             failed_domains = f.readlines()
 
         ###
@@ -80,19 +80,15 @@ class GetFailed(GeneralUtils):
             worker.setDaemon(True)
             worker.start()
 
-        for domain in failed_domains:
-            domain = domain.strip().split(',')
-            self.q.put(domain)
+        for content in failed_domains:
+            content = content.strip().split(',')
+            self.q.put(content)
 
         self.q.join()
 
         self.cprint("Completed\n")
         # Remove the copy we made
-        os.remove(self.failed_domain_file)
-        # Append failed downloads back to the original file
-        with open(self.failed_domain_file_original, 'a') as f:
-            for domain in self.failed_domain_list:
-                f.write(domain + "\n")
+        os.remove(self.failed_domain_file_failed)
 
     def domain_worker(self):
         try:
@@ -102,23 +98,23 @@ class GetFailed(GeneralUtils):
         except Exception as e:
             self.log("Exception in main for posts: " + str(e) + "\n" + str(traceback.format_exc()), level='critical')
 
-    def download_again(self, domain):
-        # Check if we support that that domain
-        if self.ed.check_domain(domain[0], domain[1]):
-            self.log("We support that domain [download_again]: " + domain[0] + " for post " + domain[2])
-            # Get the post json file and read it in
-            post_json_file = os.path.join(domain[2], 'post.json')
+    def download_again(self, content):
+        """
+        Try and download content again
+        """
+        # Get the post json file and read it in
+        post_json_file = os.path.join(content[2], 'post.json')
+        try:
             with open(post_json_file, 'r') as data_file:
                 post = json.load(data_file)
-            self.log("Downloading content [download_again]: " + domain[2])
-            post = self.download_content(post)
-            self.log("Saving content [download_again]: " + domain[2])
-            # Save the new post data to the post.json file
-            self.save_file(post_json_file, post, content_type='json')
+        except FileNotFoundError:
+            return
 
-        else:
-            # Content failed again
-            self.failed_domain_list.append((',').join(domain))
+        self.log("Downloading content [download_again]: " + content[2])
+        post = self.download_content(post)
+        self.log("Saving content [download_again]: " + content[2])
+        # Save the new post data to the post.json file
+        self.save_file(post_json_file, post, content_type='json')
 
     def cleanup(self):
         try:
