@@ -172,8 +172,8 @@ class GeneralUtils:
         """
         msg = msg.strip()
         if level == 'debug':
-            pass
-            # self.logger.debug(msg)
+            # pass
+            self.logger.debug(msg)
         elif level == 'critical':
             self.logger.critical(msg)
         elif level == 'error':
@@ -181,8 +181,8 @@ class GeneralUtils:
         elif level == 'warning':
             self.logger.warning(msg)
         else:
-            pass
-            # self.logger.info(msg)
+            # pass
+            self.logger.info(msg)
 
         return str(msg)
 
