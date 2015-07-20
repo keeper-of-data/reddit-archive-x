@@ -1,6 +1,10 @@
 # reddit-archive-x
-  
-Developed using Python 3.4
+Developed using Python 3.4  
+
+This is V2 of the script  
+Right now it will just archive the json data and comments in an organized folder structure.  
+Support for downloading/saving media posted will come later 
+
 
 Supports both users and subreddits  
 
@@ -21,123 +25,46 @@ In the example below:
                  gif   
                  funny,sfw   
 
-The browsable interface still has a ways to go so dont worry about that right now
-
-- Use to archive subreddits and users in a way where they can be browsed via the web
-- To browse the files, set the root of the server to be your save path. You can run a simple http server using python `python -m SimpleHTTPServer 8080`
 
 ## Dependencies
 - praw
 - requests
-- youtube-dl
-- pdfkit (not used yet)
 
 
 ## Usage
-- Remove `.sample` from config files in `/configs/`
+- Remove `.sample` from files in `/configs/`
 - Edit `configs/config.ini`
-- Add subreddits/users to `configs/scrap.ini`
+- Add subreddits/users to `configs/subreddits.txt` and `configs/users.txt` respectfully.
 - Run: `python3 main.py` and let it rip
 - If another site gets supported, just update the code base and run the command `python3 main.py --get_failed`. This will take the backlog of media that was not supported and download it as well as update the correct post.json file.  
 
-
 ## Supported External Hosts
-- Any link that links directly to a file
-- imgur.com
-- gfycat.com
-- youtube.com
-- vid.me
-- vimeo.com
-- vidble.com
-- ~ NSFW ~
-- xvideos.com
-- xvids.us
-- xvid6.com
-- soundgasm.net
-- mrpeepers.net
-- lovefreeporn.com
-- extremetube.com
-- pornhub.com
-- xhamster.com
-- pornbot.net
-- vidbox.us
-
 
 ## Will soon support
-- Github
-- Dropbox
-- more to come...
 
-
-## How files are stored
+## How json files are stored
 
     /  # Root web/save path
-     ├─ assets  # css and js files to be used in the templates
-     |  ├─ css
-     |  |  └─ styles.css  # Global style sheet
-     |  |
-     |  ├─ js
-     |  |  ├─ csvToArray.js  # csvToArray Library: https://code.google.com/p/jquery-csv/
-     |  |  ├─ functions.js  # Global functions script
-     |  |  └─ jquery.js  # jquery Library: https://jquery.com/
-     |  |
-     |  └─ templates
-     |     ├─ csv_viewer.html  # View for multiple posts
-     |     └─ post_viewer.html  # View for single post
+     ├─ configs
+     |  ├─ config.ini  # Main config file
+     |  ├─ subreddits.txt  # List of subreddits, each on its own line
+     |  └─ users.txt  # List of users, each on its own line
      |
      ├─ logs
-     |  ├─ failed_domains.csv  # Stores media from <domain> that cannot be downloaded
      |  └─ reddit_scraper.log  # Main log to store everything that happens
      |  
      ├─ subreddit
-     |  └─ <subreddit_name[0]>  # First letter of subreddit
-     |     └─ <subreddit_name>
-     |        ├─ <year>
-     |        |  ├─ <month>
-     |        |  |  ├─ <day>
-     |        |  |  |  ├─ index.html  # day view
-     |        |  |  |  └─ urls.csv  # list of links for day
-     |        |  |  |
-     |        |  |  ├─ index.html  # month view
-     |        |  |  └─ urls.csv  # list of links for month
-     |        |  |
-     |        |  ├─ index.html  # year view
-     |        |  └─ urls.csv  # list of links for year
-     |        |
-     |        └─ last_post.txt  # Post id of the newest post saved for <subreddit>
-     |
-     ├─ temp
-     |  └─ downloads  # Store files while downloading
-     |
-     ├─ user
-     |  └─ <username[0]>  # First letter of username
-     |     └─ <username>
-     |        ├─ files
-     |        |  └─ <hashed_subdir>
-     |        |     └─ <hashed_subdir>
-     |        |        └─ <hashed_file_name>
-     |        |
-     |        ├─ posts
-     |        |  └─ <year>
-     |        |     ├─ <month>
-     |        |     |  ├─ <day>
-     |        |     |  |  ├─ <created_utc>  # epoch time
-     |        |     |  |  |  ├─ index.html  # Single post view
-     |        |     |  |  |  └─ post.json  # Orginal data from reddit as well as added content
-     |        |     |  |  |
-     |        |     |  |  ├─ index.html  # day view
-     |        |     |  |  └─ urls.csv  # list of links for day
-     |        |     |  |
-     |        |     |  ├─ index.html  # month view
-     |        |     |  └─ urls.csv  # list of links for month
-     |        |     |
-     |        |     ├─ index.html  # year view
-     |        |     └─ urls.csv  # list of links for year
-     |        |
-     |        └─ index.html  # redirects to ./posts
+     |  └─ <subreddit_name[0:1]>  # First letter of subreddit
+     |     └─ <subreddit_name[0:2]>  # First two letters of subreddit
+     |        └─ <subreddit_name[0:3]>  # First three letters of subreddit
+     |           └─ <subreddit_name>
+     |              └─ <year>
+     |                 └─ <month>
+     |                    └─ <day>
+     |                       ├─ <unix_time>_<post_id>.json  # Post info
+     |                       └─ <unix_time>_<post_id>_comments.json  # All comments from post and their children
      |
      └─ running.lock  # Is here when the programing is running
 
 
-## Planned Features (maybe)
-- After 1 week of the post date, all of the comments from the post will be saved
+## Planned Features
