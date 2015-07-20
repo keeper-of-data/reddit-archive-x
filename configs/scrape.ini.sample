@@ -1,8 +1,0 @@
-[scrape]
-subreddits = subA
-             SubB
-             SubC
-             
-users = userA
-        userB
-        userC
