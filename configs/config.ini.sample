@@ -1,11 +1,11 @@
-; Login is option but recommend
-[reddit_login]
-user = 
-pass = 
-force = false
+; Need to login via OAuth
+[oauth]
+app_key = aaaa
+app_secret = bbbb
+access_token = cccc
+refresh_token = dddd
 
 [parser]
 num_threads = 4
 save_path = ~/Downloads/reddit/
 log_path = ~/Downloads/reddit/logs/
-just_json = false

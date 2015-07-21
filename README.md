@@ -56,13 +56,12 @@ In the example below:
      ├─ subreddit
      |  └─ <subreddit_name[0:1]>  # First letter of subreddit
      |     └─ <subreddit_name[0:2]>  # First two letters of subreddit
-     |        └─ <subreddit_name[0:3]>  # First three letters of subreddit
-     |           └─ <subreddit_name>
-     |              └─ <year>
-     |                 └─ <month>
-     |                    └─ <day>
-     |                       ├─ <unix_time>_<post_id>.json  # Post info
-     |                       └─ <unix_time>_<post_id>_comments.json  # All comments from post and their children
+     |        └─ <subreddit_name>
+     |           └─ <year>
+     |              └─ <month>
+     |                 └─ <day>
+     |                    ├─ <utc_time>_<post_id>.json  # Post info
+     |                    └─ <utc_time>_<post_id>_comments.json  # All comments from post and their children
      |
      └─ running.lock  # Is here when the programing is running
 

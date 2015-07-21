@@ -3,7 +3,6 @@ import re
 import json
 import urllib
 import shutil
-import logging
 import traceback
 import threading
 from datetime import datetime
@@ -11,10 +10,7 @@ from datetime import datetime
 
 class GeneralUtils:
 
-    def __init__(self, logger_name):
-        # Get loggers
-        self.log_name = logger_name
-        self.logger = logging.getLogger(self.log_name)
+    def __init__(self):
 
         # Lock file access when in use
         self.file_lock = {}
@@ -23,11 +19,11 @@ class GeneralUtils:
         self.prev_cstr = ''
 
         # Windows folders can not be these names
-        self.bad_folders = ['con', 'prn', 'aux', 'nul', 'com1', 'com2', 'com3',
-                            'com4', 'com5', 'com6', 'com7', 'com8', 'com9',
-                            'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6',
-                            'lpt7', 'lpt8', 'lpt9'
-                            ]
+        self.reserved_words = ['con', 'prn', 'aux', 'nul', 'com1', 'com2',
+                               'com3', 'com4', 'com5', 'com6', 'com7', 'com8',
+                               'com9', 'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5',
+                               'lpt6', 'lpt7', 'lpt8', 'lpt9'
+                               ]
 
     def get_datetime(self, time):
         """
@@ -111,37 +107,6 @@ class GeneralUtils:
         path = self.norm_path(path)
         return path
 
-    def download_content(self, post):
-        """
-        :return: Modified post dict
-        """
-        # Create an empty file list
-        file_list = []
-
-        self.cprint("Downloading external data for: " + post['id'] + " from " + post['domain'], log=True)
-        try:
-            file_list = self.ed.download(post['url'], post['user_save_path'])
-        except Exception as e:
-            self.log("Download failed: " + str(e) + "\n" + str(traceback.format_exc()), level='error')
-
-        # If file_list is empty, that means that the downloads failed and we need to tray again
-        if len(file_list) == 0:
-            failed_content = post['domain'] + "," + post['url'] + "," + post['post_save_path']
-            self.append_file(self.failed_domain_file, failed_content)
-            self.log("Failed domain: " + post['domain'] + " post: " + post['post_save_path'], level='error')
-
-        # Add file list to selftext_html to be viewed
-        post['selftext_html'] = '<h2>Files:</h2><a href="' + post['url'] + '">External link</a><br />'
-        post['file_downloads'] = file_list
-        post['file_downloads_web'] = []
-        for dl_file in file_list:
-            web_file = self.save_to_web_path(dl_file)
-            post['file_downloads_web'].append(web_file)
-            post['selftext_html'] += '<div class="file"> \
-                                      <a href="' + web_file + '">Local link</a> \
-                                      </div>'
-
-        return post
 
     def cprint(self, cstr, log=False):
         """
@@ -170,21 +135,7 @@ class GeneralUtils:
         :param level: Level to which to log msg, default: info
         :return: Data as a string to print to console
         """
-        msg = msg.strip()
-        if level == 'debug':
-            # pass
-            self.logger.debug(msg)
-        elif level == 'critical':
-            self.logger.critical(msg)
-        elif level == 'error':
-            self.logger.error(msg)
-        elif level == 'warning':
-            self.logger.warning(msg)
-        else:
-            # pass
-            self.logger.info(msg)
-
-        return str(msg)
+        print("LOG:", msg)
 
     #######################################################
     #
