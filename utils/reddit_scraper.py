@@ -220,20 +220,6 @@ class RedditScraper(GeneralUtils):
         # Done doing things here
         return True
 
-    def create_web_path(self, base, *args, path_type=''):
-        """
-        Creates absolute path that will be used on the web server
-        """
-        path = ''
-        if path_type == 'user' or path_type == 'post':
-            path = "/user/" + base[0] + "/" + base + "/"
-            if path_type == 'post':
-                path += "posts/" + "/".join(args) + "/"
-        else:
-            path = "/" + "/".join(args)
-
-        return path
-
     def cleanup(self):
         # Close the reddit session
         self.reddit.close()
