@@ -128,14 +128,21 @@ class RedditScraper(GeneralUtils):
         """
         conn = sqlite3.connect(self.db_file)
         cur = conn.cursor()
-        for query in self.sql_queue:
-            cur.execute(query)
-            self.sql_queue.remove(query)
+        temp_queue = self.sql_queue
+        cur.executemany("INSERT INTO \
+            posts (created, created_utc, subreddit, subreddit_save, author) \
+            VALUES (?,?,?,?,?)", temp_queue)
 
         # Save (commit) the changes
         conn.commit()
         # Close sqlite db connection
         conn.close()
+
+        # Now remove what we just added
+        for item in temp_queue:
+            self.sql_queue.remove(item)
+        print(len(self.sql_queue))
+
         # Reload again in n seconds
         t_reload = threading.Timer(5, self.add_to_db)
         t_reload.setDaemon(True)
@@ -206,16 +213,12 @@ class RedditScraper(GeneralUtils):
                      str(traceback.format_exc())
                      )
 
-        query = 'INSERT INTO \
-                posts (created, created_utc, subreddit, subreddit_save, author) \
-                VALUES (' + \
-                str(int(post['created'])) + ', ' + \
-                str(int(post['created_utc'])) + ', "' + \
-                post['subreddit'] + '", "' + \
-                post['subreddit_save_folder'] + '", "' + \
-                post['author'] + '")'
-
-        self.sql_add_queue(query)
+        self.sql_add_queue([int(post['created']),
+                            int(post['created_utc']),
+                            post['subreddit'],
+                            post['subreddit_save_folder'],
+                            post['author']
+                            ])
 
         # Done doing things here
         return True
