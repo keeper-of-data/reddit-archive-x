@@ -21,11 +21,12 @@ class GeneralUtils:
 
         # Block print display messages
         self.bprint_messages = [
-                                ['Reddit Archiver By: X', ''],  # 0
+                                ['Reddit Archiver by /u/xtream1101 ', ''],  # 0
                                 ['Post Queue', ''],  # 1
                                 ['DB Queue', ''],  # 2
                                 ['Comment Queue', ''],  # 3
                                 ['Last post', ''],  # 4
+                                ['Curr Action', ''],  # 5
                                ]
 
         # Windows folders can not be these names
@@ -156,27 +157,20 @@ class GeneralUtils:
     def bprint(self, bmsg, line_num):
         """
         bprint: Block Print
-        0: Program Name
-        1: Post parse queue
-        2: Database queue
-        3: Get comments queue
-        4: N/A
-        5: N/A
-        self.bprint_messages[line_num][0] is always the text
+        self.bprint_messages[line_num][0] is always the display text
         self.bprint_messages[line_num][1] is always the value
         """
         self.bprint_messages[line_num][1] = bmsg
 
     def _bprint_display(self):
-        self.bprint_messages[0][1] = int(time.time())
-        self.bprint_messages[1][1] = self.q.qsize()
+        self.bprint_messages[0][1] = time.time()
 
         os.system("cls")
         for msg in self.bprint_messages:
             print(msg[0] + ": " + str(msg[1]))
 
-        # Update terminal every second
-        t_reload = threading.Timer(1, self._bprint_display)
+        # Update terminal every n seconds
+        t_reload = threading.Timer(.5, self._bprint_display)
         t_reload.setDaemon(True)
         t_reload.start()
 

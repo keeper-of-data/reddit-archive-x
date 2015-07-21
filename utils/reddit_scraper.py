@@ -64,6 +64,7 @@ class RedditScraper(GeneralUtils):
             worker.setDaemon(True)
             worker.start()
 
+        self.bprint("Getting first batch of posts...", 5)
         try:
             stream = praw.helpers.submission_stream(self.reddit.r,
                                                     'all',
@@ -81,6 +82,8 @@ class RedditScraper(GeneralUtils):
         """
         try:
             while True:
+                # Db queue size
+                self.bprint(self.q.qsize(), 1)
                 self.parse_post(self.q.get())
                 self.q.task_done()
         except Exception as e:
@@ -122,7 +125,7 @@ class RedditScraper(GeneralUtils):
         #   If so exit the script as there is no reason to run
         if len(self.scrape['users']) == 0 and \
            len(self.scrape['subreddits']) == 0:
-            self.bprint("You have no users or subreddits listed", 1)
+            self.bprint("You have no users or subreddits listed", 5)
 
         # Reload again in n seconds
         t_reload = threading.Timer(10, self.load_scrape_config)
@@ -250,6 +253,7 @@ class RedditScraper(GeneralUtils):
                 return
 
         self.bprint(post['id'], 4)
+        self.bprint("Saving post " + post['id'], 5)
 
         # Check if full sub name is in reserved_words then append a `-`
         post['subreddit_save_folder'] = post['subreddit']
@@ -277,6 +281,7 @@ class RedditScraper(GeneralUtils):
                             post['author']
                             ])
 
+        self.bprint("Waiting for posts...", 5)
         # Done doing things here
         return True
 
