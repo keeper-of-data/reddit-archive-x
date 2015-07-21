@@ -130,8 +130,8 @@ class RedditScraper(GeneralUtils):
         cur = conn.cursor()
         temp_queue = self.sql_queue
         cur.executemany("INSERT INTO \
-            posts (created, created_utc, subreddit, subreddit_save, author) \
-            VALUES (?,?,?,?,?)", temp_queue)
+            posts (created, created_utc, post_id, subreddit, subreddit_save, author) \
+            VALUES (?,?,?,?,?,?)", temp_queue)
 
         # Save (commit) the changes
         conn.commit()
@@ -141,12 +141,35 @@ class RedditScraper(GeneralUtils):
         # Now remove what we just added
         for item in temp_queue:
             self.sql_queue.remove(item)
-        print(len(self.sql_queue))
 
         # Reload again in n seconds
         t_reload = threading.Timer(5, self.add_to_db)
         t_reload.setDaemon(True)
         t_reload.start()
+
+    # def check_comments(self):
+    #     """
+    #     From SQL database, get all posts that are X old
+    #       and `have_comments` is not `1`
+    #     Pass this list to get_comments() to save to file
+    #     """
+    #     check_interval = 6  # In hours
+    #     min_age = 7  # In days
+
+    #     conn = sqlite3.connect(self.db_file)
+    #     cur = conn.cursor()
+
+    #     cur.execute("SELECT * FROM posts WHERE have_comments != 1 AND created_utc >= ")
+
+    #     rows = cur.fetchall()
+
+    #     for row in rows:
+    #         print(row)
+
+    #     # Reload again in n seconds
+    #     t_reload = threading.Timer((check_interval*60)*60, self.check_comments)
+    #     t_reload.setDaemon(True)
+    #     t_reload.start()
 
     def parse_post(self, raw_post):
         """
@@ -215,6 +238,7 @@ class RedditScraper(GeneralUtils):
 
         self.sql_add_queue([int(post['created']),
                             int(post['created_utc']),
+                            post['name'],  # Post id with t3_
                             post['subreddit'],
                             post['subreddit_save_folder'],
                             post['author']
