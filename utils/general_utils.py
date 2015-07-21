@@ -19,12 +19,25 @@ class GeneralUtils:
         # So we know how long the prev string printed was
         self.prev_cstr = ''
 
+        # Block print display messages
+        self.bprint_messages = [
+                                ['Reddit Archiver By: X', ''],  # 0
+                                ['Post Queue', ''],  # 1
+                                ['DB Queue', ''],  # 2
+                                ['Comment Queue', ''],  # 3
+                                ['Last post', ''],  # 4
+                               ]
+
         # Windows folders can not be these names
         self.reserved_words = ['con', 'prn', 'aux', 'nul', 'com1', 'com2',
                                'com3', 'com4', 'com5', 'com6', 'com7', 'com8',
                                'com9', 'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5',
                                'lpt6', 'lpt7', 'lpt8', 'lpt9'
                                ]
+
+    def enable_bprint(self):
+        # Start instance of block print
+        self._bprint_display()
 
     def get_datetime(self, time):
         """
@@ -140,6 +153,32 @@ class GeneralUtils:
         path = self.norm_path(path)
         return path
 
+    def bprint(self, bmsg, line_num):
+        """
+        bprint: Block Print
+        0: Program Name
+        1: Post parse queue
+        2: Database queue
+        3: Get comments queue
+        4: N/A
+        5: N/A
+        self.bprint_messages[line_num][0] is always the text
+        self.bprint_messages[line_num][1] is always the value
+        """
+        self.bprint_messages[line_num][1] = bmsg
+
+    def _bprint_display(self):
+        self.bprint_messages[0][1] = int(time.time())
+        self.bprint_messages[1][1] = self.q.qsize()
+
+        os.system("cls")
+        for msg in self.bprint_messages:
+            print(msg[0] + ": " + str(msg[1]))
+
+        # Update terminal every second
+        t_reload = threading.Timer(1, self._bprint_display)
+        t_reload.setDaemon(True)
+        t_reload.start()
 
     def cprint(self, cstr, log=False):
         """

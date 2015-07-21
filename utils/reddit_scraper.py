@@ -14,6 +14,7 @@ class RedditScraper(GeneralUtils):
 
     def __init__(self, reddit_oauth, save_path, num_threads):
         super().__init__()
+
         self.base_dir = self.norm_path(save_path)
 
         self.db_file = os.path.join(self.base_dir, 'logs', 'test.db')
@@ -23,6 +24,9 @@ class RedditScraper(GeneralUtils):
         # Thread life
         self.num_threads = num_threads
         self.q = Queue(maxsize=0)
+
+        # Enable bprint
+        self.enable_bprint()
 
         # Name of scraper to put in the user agent
         scraper_name = socket.gethostname()
@@ -110,9 +114,7 @@ class RedditScraper(GeneralUtils):
         #   If so exit the script as there is no reason to run
         if len(self.scrape['users']) == 0 and \
            len(self.scrape['subreddits']) == 0:
-            self.cprint("You have no users or subreddits listed")
-        else:
-            self.cprint("Searching for posts")
+            self.bprint("You have no users or subreddits listed", 1)
 
         # Reload again in n seconds
         t_reload = threading.Timer(10, self.load_scrape_config)
@@ -130,24 +132,28 @@ class RedditScraper(GeneralUtils):
         Every n seconds, open a database connection and write everything
           from self.sql_queue to database
         """
-        conn = sqlite3.connect(self.db_file)
-        cur = conn.cursor()
-        temp_queue = self.sql_queue
-        cur.executemany("INSERT INTO \
-            posts (created, created_utc, post_id, subreddit, subreddit_save, author) \
-            VALUES (?,?,?,?,?,?)", temp_queue)
+        if len(self.sql_queue) > 0:
+            conn = sqlite3.connect(self.db_file)
+            cur = conn.cursor()
+            temp_queue = self.sql_queue
+            cur.executemany("INSERT INTO \
+                posts (created, created_utc, post_id, subreddit, subreddit_save, author) \
+                VALUES (?,?,?,?,?,?)", temp_queue)
 
-        # Save (commit) the changes
-        conn.commit()
-        # Close sqlite db connection
-        conn.close()
+            # Save (commit) the changes
+            conn.commit()
+            # Close sqlite db connection
+            conn.close()
 
-        # Now remove what we just added
-        for item in temp_queue:
-            self.sql_queue.remove(item)
+            # Now remove what we just added
+            for item in temp_queue:
+                self.sql_queue.remove(item)
+
+        # Db queue size
+        self.bprint(len(self.sql_queue), 2)
 
         # Reload again in n seconds
-        t_reload = threading.Timer(5, self.add_to_db)
+        t_reload = threading.Timer(1, self.add_to_db)
         t_reload.setDaemon(True)
         t_reload.start()
 
@@ -172,8 +178,10 @@ class RedditScraper(GeneralUtils):
                      created_utc <= ?", [min_age_utc])
 
         rows = cur.fetchall()
-
-        for row in rows:
+        self.bprint(len(rows), 3)
+        for idx, row in enumerate(rows):
+            # Comment queue size
+            self.bprint(len(rows)-idx+1, 3)
             created_utc = row[0]
             post_id = row[1]
             subreddit_save = row[2]
@@ -194,8 +202,6 @@ class RedditScraper(GeneralUtils):
         Save to json file
         :return: True if successful, else False
         """
-        print("Saving comments for:", post_id, subreddit_save)
-
         # Make some reddit api calls to get the data
         all_comments = self.reddit.get_comments(post_id)
 
@@ -240,7 +246,7 @@ class RedditScraper(GeneralUtils):
                  post['over_18'] is True:
                 return
 
-        self.cprint("Checking post: " + post['id'])
+        self.bprint(post['id'], 4)
 
         # Check if full sub name is in reserved_words then append a `-`
         post['subreddit_save_folder'] = post['subreddit']
