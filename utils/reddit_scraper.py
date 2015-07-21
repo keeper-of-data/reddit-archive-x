@@ -1,4 +1,5 @@
 import os
+import json
 import praw
 import socket
 import sqlite3
@@ -32,6 +33,9 @@ class RedditScraper(GeneralUtils):
 
         # Load content into self.scrape
         self.load_scrape_config()
+
+        # Check comment gathering
+        self.check_comments()
 
         # Run parser
         self.main()
@@ -147,29 +151,64 @@ class RedditScraper(GeneralUtils):
         t_reload.setDaemon(True)
         t_reload.start()
 
-    # def check_comments(self):
-    #     """
-    #     From SQL database, get all posts that are X old
-    #       and `have_comments` is not `1`
-    #     Pass this list to get_comments() to save to file
-    #     """
-    #     check_interval = 6  # In hours
-    #     min_age = 7  # In days
+    def check_comments(self):
+        """
+        From SQL database, get all posts that are X old
+          and `have_comments` is not `1`
+        Pass this list to get_comments() to save to file
+        """
+        # CHANGE
+        check_interval = 6  # In hours, dev set to .08 (aprox. 5 mins)
+        min_age = 7  # In days, dev set to .02 (aprox. 30 mins)
+        # STOP CHANGE
 
-    #     conn = sqlite3.connect(self.db_file)
-    #     cur = conn.cursor()
+        min_age_sec = min_age * 86400  # 86400 is sec in a day
+        min_age_utc = int(abs(self.get_utc_epoch() - min_age_sec))
+        conn = sqlite3.connect(self.db_file)
+        cur = conn.cursor()
 
-    #     cur.execute("SELECT * FROM posts WHERE have_comments != 1 AND created_utc >= ")
+        cur.execute("SELECT created_utc, post_id, subreddit_save FROM posts WHERE \
+                     have_comments != 1 AND \
+                     created_utc <= ?", [min_age_utc])
 
-    #     rows = cur.fetchall()
+        rows = cur.fetchall()
 
-    #     for row in rows:
-    #         print(row)
+        for row in rows:
+            created_utc = row[0]
+            post_id = row[1]
+            subreddit_save = row[2]
 
-    #     # Reload again in n seconds
-    #     t_reload = threading.Timer((check_interval*60)*60, self.check_comments)
-    #     t_reload.setDaemon(True)
-    #     t_reload.start()
+            if self.get_comments(created_utc, post_id, subreddit_save):
+                cur.execute("UPDATE posts SET have_comments=1 \
+                             WHERE post_id=?", [post_id])
+                conn.commit()
+
+        # Reload again in n seconds
+        t_reload = threading.Timer((check_interval*60)*60, self.check_comments)
+        t_reload.setDaemon(True)
+        t_reload.start()
+
+    def get_comments(self, created_utc, post_id, subreddit_save):
+        """
+        Get all comments and child comments from post
+        Save to json file
+        :return: True if successful, else False
+        """
+        print("Saving comments for:", post_id, subreddit_save)
+
+        # Make some reddit api calls to get the data
+        all_comments = self.reddit.get_comments(post_id)
+
+        # Post id being passed in includes `t3_`
+        post_save_name = post_id.split('_')[1] + "_comments"
+
+        # Save the comments in a json file
+        comments_save_file = self.create_sub_save_file(created_utc,
+                                                       subreddit_save,
+                                                       post_save_name)
+        with open(comments_save_file, 'w') as fp:
+            json.dump(all_comments, fp)
+        return True
 
     def parse_post(self, raw_post):
         """
@@ -203,30 +242,15 @@ class RedditScraper(GeneralUtils):
 
         self.cprint("Checking post: " + post['id'])
 
-        created = self.get_datetime(post['created_utc'])
-        y = str(created.year)
-        m = str(created.month)
-        d = str(created.day)
-        utc_str = str(int(post['created_utc']))
-
         # Check if full sub name is in reserved_words then append a `-`
         post['subreddit_save_folder'] = post['subreddit']
         if post['subreddit_save_folder'] in self.reserved_words:
             post['subreddit_save_folder'] = post['subreddit'] + "-"
 
-        # Create .json savepath, filename will be created_utc_id.json
-        # Create directory 3 deep (min length of a subreddit name)
-        json_save_path = self.create_base_path('subreddits',
-                                               post['subreddit'][0:1],
-                                               post['subreddit'][0:2],
-                                               post['subreddit_save_folder'],
-                                               y, m, d
-                                               )
         # Save json data
-        json_save_file = os.path.join(
-                                      json_save_path,
-                                      utc_str + "_" + post['id'] + ".json"
-                                      )
+        json_save_file = self.create_sub_save_file(post['created_utc'],
+                                                   post['subreddit_save_folder'],
+                                                   post['id'])
         try:
             self.save_file(json_save_file, post, content_type='json')
         except Exception as e:

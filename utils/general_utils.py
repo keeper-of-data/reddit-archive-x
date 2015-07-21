@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import json
 import urllib
 import shutil
@@ -30,6 +31,12 @@ class GeneralUtils:
         :return: datetime object from epoch timestamp
         """
         return datetime.fromtimestamp(time)
+
+    def get_utc_epoch(self):
+        """
+        :return: utc time since epoch
+        """
+        return int(time.time())
 
     def norm_path(self, path):
         """
@@ -62,6 +69,32 @@ class GeneralUtils:
             pass
 
         return path
+
+    def create_sub_save_file(self, created_utc, subreddit_save, post_id):
+        """
+        `post_id` is just used for filename, so we can
+          append `_comments` or anything else safely
+        """
+        created = self.get_datetime(created_utc)
+        y = str(created.year)
+        m = str(created.month)
+        d = str(created.day)
+        utc_str = str(int(created_utc))
+
+        # Create .json savepath, filename will be created_utc_id.json
+        # Create directory 3 deep (min length of a subreddit name)
+        json_save_path = self.create_base_path('subreddits',
+                                               subreddit_save[0:1],
+                                               subreddit_save[0:2],
+                                               subreddit_save,
+                                               y, m, d
+                                               )
+        # Save path for json data
+        json_save_file = os.path.join(
+                                      json_save_path,
+                                      utc_str + "_" + post_id + ".json"
+                                      )
+        return json_save_file
 
     def create_save_path(self, *args):
         """
