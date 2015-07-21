@@ -17,11 +17,19 @@ class RedditScraper(GeneralUtils):
 
         self.base_dir = self.norm_path(save_path)
 
+        # Path for database file
         self.db_file = os.path.join(self.base_dir, 'logs', 'test.db')
-        self.sql_queue = []
-        self.add_to_db()  # Call once to get the timer started
 
-        # Thread life
+        # Create queue for inserting into database to use
+        self.sql_queue = Queue(maxsize=0)
+        self.bprint(self.sql_queue.qsize(), 2)  # Init display count
+
+        # Create a single thread to insert data into the database
+        sql_worker = threading.Thread(target=self.add_to_db)
+        sql_worker.setDaemon(True)
+        sql_worker.start()
+
+        # Thread life: parse post threads
         self.num_threads = num_threads
         self.q = Queue(maxsize=0)
 
@@ -49,7 +57,7 @@ class RedditScraper(GeneralUtils):
 
     def main(self):
         ###
-        # Thread processing of each failed post
+        # Thread processing of each post
         ###
         for i in range(self.num_threads):
             worker = threading.Thread(target=self.post_worker)
@@ -123,45 +131,34 @@ class RedditScraper(GeneralUtils):
 
     def sql_add_queue(self, query):
         """
-        Add queries to a list to be processed by add_to_db()
+        Add queries to a queue to be processed by add_to_db()
         """
-        self.sql_queue.append(query)
+        # self.sql_queue.append(query)
+        self.sql_queue.put(query)
 
     def add_to_db(self):
         """
-        Every n seconds, open a database connection and write everything
-          from self.sql_queue to database
+        As items are added to `sql_queue` they are inserted into the db
         """
-        if len(self.sql_queue) > 0:
-            conn = sqlite3.connect(self.db_file)
-            cur = conn.cursor()
-            temp_queue = self.sql_queue
-            for query in self.sql_queue:
-                self.bprint(len(self.sql_queue), 2)
-                try:
-                    cur.execute("INSERT INTO \
-                        posts (created, created_utc, post_id, subreddit, subreddit_save, author) \
-                        VALUES (?,?,?,?,?,?)", query)
-                    # Save (commit) the changes
-                    conn.commit()
-                except sqlite3.IntegrityError:
-                    pass
-                self.sql_queue.remove(query)
+        conn = sqlite3.connect(self.db_file)
+        cur = conn.cursor()
+        while True:
+            query = self.sql_queue.get()
+            # Db queue size
+            self.bprint(self.sql_queue.qsize(), 2)
 
-            # Close sqlite db connection
-            conn.close()
+            try:
+                cur.execute("INSERT INTO \
+                    posts (created, created_utc, post_id, subreddit, subreddit_save, author) \
+                    VALUES (?,?,?,?,?,?)", query)
+                # Save (commit) the changes
+                conn.commit()
+            except sqlite3.IntegrityError:
+                # It tried to add a post that was already in the database
+                #   We do not care, so ignore it
+                pass
 
-            # Now remove what we just added
-            for item in temp_queue:
-                self.sql_queue.remove(item)
-
-        # Db queue size
-        self.bprint(len(self.sql_queue), 2)
-
-        # Reload again in n seconds
-        t_reload = threading.Timer(1, self.add_to_db)
-        t_reload.setDaemon(True)
-        t_reload.start()
+            self.sql_queue.task_done()
 
     def check_comments(self):
         """
