@@ -136,12 +136,18 @@ class RedditScraper(GeneralUtils):
             conn = sqlite3.connect(self.db_file)
             cur = conn.cursor()
             temp_queue = self.sql_queue
-            cur.executemany("INSERT INTO \
-                posts (created, created_utc, post_id, subreddit, subreddit_save, author) \
-                VALUES (?,?,?,?,?,?)", temp_queue)
+            for query in self.sql_queue:
+                self.bprint(len(self.sql_queue), 2)
+                try:
+                    cur.execute("INSERT INTO \
+                        posts (created, created_utc, post_id, subreddit, subreddit_save, author) \
+                        VALUES (?,?,?,?,?,?)", query)
+                    # Save (commit) the changes
+                    conn.commit()
+                except sqlite3.IntegrityError:
+                    pass
+                self.sql_queue.remove(query)
 
-            # Save (commit) the changes
-            conn.commit()
             # Close sqlite db connection
             conn.close()
 

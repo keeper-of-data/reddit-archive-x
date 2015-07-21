@@ -39,7 +39,7 @@ def setup_database():
                      (id             INTEGER    PRIMARY KEY  AUTOINCREMENT,
                       created        INTEGER    NOT NULL,
                       created_utc    INTEGER    NOT NULL,
-                      post_id        VARCHAR(20)     NOT NULL,
+                      post_id        VARCHAR(20)  UNIQUE NOT NULL,
                       subreddit      VARCHAR(100)    NOT NULL,
                       subreddit_save VARCHAR(100)    NOT NULL,
                       author         VARCHAR(100)    NOT NULL,
