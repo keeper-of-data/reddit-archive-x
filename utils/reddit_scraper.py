@@ -1,6 +1,7 @@
 import os
 import praw
 import socket
+import sqlite3
 import threading
 import traceback
 from queue import Queue
@@ -13,6 +14,10 @@ class RedditScraper(GeneralUtils):
     def __init__(self, reddit_oauth, save_path, num_threads):
         super().__init__()
         self.base_dir = self.norm_path(save_path)
+
+        self.db_file = os.path.join(self.base_dir, 'logs', 'test.db')
+        self.sql_queue = []
+        self.add_to_db()  # Call once to get the timer started
 
         # Thread life
         self.num_threads = num_threads
@@ -90,6 +95,7 @@ class RedditScraper(GeneralUtils):
             for item in temp_list[feed]:
                 option = item.lower().split(',')
                 option[0] = option[0].strip()
+                # Add subreddit/user to list of things to watch for
                 self.scrape[feed].append(option[0])
                 # Check to see if we have any prams
                 if len(option) > 1:
@@ -106,6 +112,32 @@ class RedditScraper(GeneralUtils):
 
         # Reload again in n seconds
         t_reload = threading.Timer(10, self.load_scrape_config)
+        t_reload.setDaemon(True)
+        t_reload.start()
+
+    def sql_add_queue(self, query):
+        """
+        Add queries to a list to be processed by add_to_db()
+        """
+        self.sql_queue.append(query)
+
+    def add_to_db(self):
+        """
+        Every n seconds, open a database connection and write everything
+          from self.sql_queue to database
+        """
+        conn = sqlite3.connect(self.db_file)
+        cur = conn.cursor()
+        for query in self.sql_queue:
+            cur.execute(query)
+            self.sql_queue.remove(query)
+
+        # Save (commit) the changes
+        conn.commit()
+        # Close sqlite db connection
+        conn.close()
+        # Reload again in n seconds
+        t_reload = threading.Timer(5, self.add_to_db)
         t_reload.setDaemon(True)
         t_reload.start()
 
@@ -147,21 +179,17 @@ class RedditScraper(GeneralUtils):
         d = str(created.day)
         utc_str = str(int(post['created_utc']))
 
-        # Check if the first 3 letters match
-        sub = post['subreddit'][0:3]
-        sub_dir = sub
-
-        # Check if full sub name is in reserved_words
-        if post['subreddit'] in self.reserved_words:
-            post['subreddit_original'] = post['subreddit']
-            post['subreddit'] = sub_dir
+        # Check if full sub name is in reserved_words then append a `-`
+        post['subreddit_save_folder'] = post['subreddit']
+        if post['subreddit_save_folder'] in self.reserved_words:
+            post['subreddit_save_folder'] = post['subreddit'] + "-"
 
         # Create .json savepath, filename will be created_utc_id.json
         # Create directory 3 deep (min length of a subreddit name)
         json_save_path = self.create_base_path('subreddits',
                                                post['subreddit'][0:1],
                                                post['subreddit'][0:2],
-                                               post['subreddit'],
+                                               post['subreddit_save_folder'],
                                                y, m, d
                                                )
         # Save json data
@@ -177,6 +205,17 @@ class RedditScraper(GeneralUtils):
                      str(e) + " " + post['id'] + "\n" +
                      str(traceback.format_exc())
                      )
+
+        query = 'INSERT INTO \
+                posts (created, created_utc, subreddit, subreddit_save, author) \
+                VALUES (' + \
+                str(int(post['created'])) + ', ' + \
+                str(int(post['created_utc'])) + ', "' + \
+                post['subreddit'] + '", "' + \
+                post['subreddit_save_folder'] + '", "' + \
+                post['author'] + '")'
+
+        self.sql_add_queue(query)
 
         # Done doing things here
         return True
@@ -196,4 +235,5 @@ class RedditScraper(GeneralUtils):
         return path
 
     def cleanup(self):
+        # Close the reddit session
         self.reddit.close()
