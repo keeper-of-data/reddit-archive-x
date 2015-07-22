@@ -14,6 +14,9 @@ warnings.filterwarnings("ignore", category=ResourceWarning)
 
 def signal_handler(signum, frame):
     print("Quit the running process and clean up")
+    # Remove lock file when we are done
+    os.remove(lock_file)
+    sys.exit(0)
 
 
 def check_lock_file(lock_file):
@@ -106,5 +109,3 @@ if __name__ == "__main__":
 
     check_lock_file(lock_file)
     reddit = RedditScraper(config['oauth'], watch_list_file, save_path, num_threads)
-    # Remove lock file when we are done
-    os.remove(lock_file)

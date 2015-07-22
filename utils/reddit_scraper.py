@@ -89,7 +89,8 @@ class RedditScraper(GeneralUtils):
                 # Add post to queue
                 self.q.put(item)
             self.q.join()
-        except InterruptedError:
+        except Exception as e:
+            print("\n" + str(e) + "\n")
             return
 
     def post_worker(self):
