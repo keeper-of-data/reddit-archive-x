@@ -19,15 +19,27 @@ class GeneralUtils:
         # So we know how long the prev string printed was
         self.prev_cstr = ''
 
-        # Block print display messages
-        self.bprint_messages = [
-                                ['Reddit Archiver by /u/xtream1101 ', ''],  # 0
-                                ['Post Queue', ''],  # 1
-                                ['DB Queue', ''],  # 2
-                                ['Comment Queue', ''],  # 3
-                                ['Last post', ''],  # 4
-                                ['Curr Action', ''],  # 5
-                               ]
+        # Block print display messages and value store
+        self.bprint_messages = {'title': ['Reddit Archiver by /u/xtream1101 ', ''],
+                                'queue_p': ['Post Queue', ''],
+                                'queue_db': ['DB Queue', ''],
+                                'queue_c': ['Comment Queue', ''],
+                                'last_p': ['Last post', ''],
+                                'curr_a': ['Curr Action', ''],
+                                'count_p': ['Post Count', ''],
+                                'freq_p': ['Posts/min', ''],
+                                }
+
+        # Block print display order (remove item if do not want to display)
+        self.bprint_order = ['title',
+                             'queue_p',
+                             'queue_db',
+                             'queue_c',
+                             'last_p',
+                             'curr_a',
+                             'count_p',
+                             'freq_p',
+                             ]
 
         # Windows folders can not be these names
         self.reserved_words = ['con', 'prn', 'aux', 'nul', 'com1', 'com2',
@@ -154,20 +166,22 @@ class GeneralUtils:
         path = self.norm_path(path)
         return path
 
-    def bprint(self, bmsg, line_num):
+    def bprint(self, bmsg, line):
         """
         bprint: Block Print
-        self.bprint_messages[line_num][0] is always the display text
-        self.bprint_messages[line_num][1] is always the value
+        self.bprint_messages[line][0] is always the display text
+        self.bprint_messages[line][1] is always the value
         """
-        self.bprint_messages[line_num][1] = bmsg
+        self.bprint_messages[line][1] = bmsg
 
     def _bprint_display(self):
-        self.bprint_messages[0][1] = time.time()
+        self.bprint_messages['title'][1] = time.time()
 
+        # TODO: support other OS's
         os.system("cls")
-        for msg in self.bprint_messages:
-            print(msg[0] + ": " + str(msg[1]))
+        for item in self.bprint_order:
+            print(self.bprint_messages[item][0] + ": " +
+                  str(self.bprint_messages[item][1]))
 
         # Update terminal every n seconds
         t_reload = threading.Timer(.5, self._bprint_display)

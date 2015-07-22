@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import praw
 import socket
@@ -22,7 +23,7 @@ class RedditScraper(GeneralUtils):
 
         # Create queue for inserting into database to use
         self.sql_queue = Queue(maxsize=0)
-        self.bprint(self.sql_queue.qsize(), 2)  # Init display count
+        self.bprint(self.sql_queue.qsize(), 'queue_db')  # Init display count
 
         # Create a single thread to insert data into the database
         sql_worker = threading.Thread(target=self.add_to_db)
@@ -49,6 +50,10 @@ class RedditScraper(GeneralUtils):
         # Check comment gathering
         self.check_comments()
 
+        # Stats
+        self.start_time = time.time()
+        self.post_count = 0
+
         # Run parser
         self.main()
 
@@ -64,11 +69,11 @@ class RedditScraper(GeneralUtils):
             worker.setDaemon(True)
             worker.start()
 
-        self.bprint("Getting first batch of posts...", 5)
+        self.bprint("Getting first batch of posts...", 'curr_a')
         try:
             stream = praw.helpers.submission_stream(self.reddit.r,
                                                     'all',
-                                                    None,
+                                                    500,  # Max num of posts to get each call
                                                     0)
             for item in stream:
                 self.q.put(item)
@@ -83,7 +88,7 @@ class RedditScraper(GeneralUtils):
         try:
             while True:
                 # Db queue size
-                self.bprint(self.q.qsize(), 1)
+                self.bprint(self.q.qsize(), 'queue_p')
                 self.parse_post(self.q.get())
                 self.q.task_done()
         except Exception as e:
@@ -125,7 +130,7 @@ class RedditScraper(GeneralUtils):
         #   If so exit the script as there is no reason to run
         if len(self.scrape['users']) == 0 and \
            len(self.scrape['subreddits']) == 0:
-            self.bprint("You have no users or subreddits listed", 5)
+            self.bprint("You have no users or subreddits listed", 'curr_a')
 
         # Reload again in n seconds
         t_reload = threading.Timer(10, self.load_scrape_config)
@@ -144,24 +149,25 @@ class RedditScraper(GeneralUtils):
         As items are added to `sql_queue` they are inserted into the db
         """
         conn = sqlite3.connect(self.db_file)
-        cur = conn.cursor()
-        while True:
-            query = self.sql_queue.get()
-            # Db queue size
-            self.bprint(self.sql_queue.qsize(), 2)
+        with conn:
+            cur = conn.cursor()
+            while True:
+                query = self.sql_queue.get()
+                # Db queue size
+                self.bprint(self.sql_queue.qsize(), 'queue_db')
 
-            try:
-                cur.execute("INSERT INTO \
-                    posts (created, created_utc, post_id, subreddit, subreddit_save, author) \
-                    VALUES (?,?,?,?,?,?)", query)
-                # Save (commit) the changes
-                conn.commit()
-            except sqlite3.IntegrityError:
-                # It tried to add a post that was already in the database
-                #   We do not care, so ignore it
-                pass
+                try:
+                    cur.execute("INSERT INTO \
+                        posts (created, created_utc, post_id, subreddit, subreddit_save, author) \
+                        VALUES (?,?,?,?,?,?)", query)
+                    # Save (commit) the changes
+                    conn.commit()
+                except sqlite3.IntegrityError:
+                    # It tried to add a post that was already in the database
+                    #   We do not care, so ignore it
+                    pass
 
-            self.sql_queue.task_done()
+                self.sql_queue.task_done()
 
     def check_comments(self):
         """
@@ -184,10 +190,10 @@ class RedditScraper(GeneralUtils):
                      created_utc <= ?", [min_age_utc])
 
         rows = cur.fetchall()
-        self.bprint(len(rows), 3)
+        self.bprint(len(rows), 'queue_c')
         for idx, row in enumerate(rows):
             # Comment queue size
-            self.bprint(len(rows)-idx+1, 3)
+            self.bprint(len(rows)-idx+1, 'queue_c')
             created_utc = row[0]
             post_id = row[1]
             subreddit_save = row[2]
@@ -252,8 +258,8 @@ class RedditScraper(GeneralUtils):
                  post['over_18'] is True:
                 return
 
-        self.bprint(post['id'], 4)
-        self.bprint("Saving post " + post['id'], 5)
+        self.bprint(post['id'], 'last_p')
+        self.bprint("Saving post " + post['id'], 'curr_a')
 
         # Check if full sub name is in reserved_words then append a `-`
         post['subreddit_save_folder'] = post['subreddit']
@@ -281,7 +287,7 @@ class RedditScraper(GeneralUtils):
                             post['author']
                             ])
 
-        self.bprint("Waiting for posts...", 5)
+        self.bprint("Waiting for posts...", 'curr_a')
         # Done doing things here
         return True
 
