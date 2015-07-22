@@ -27,7 +27,7 @@ class GeneralUtils:
                                 'last_p': ['Last post', ''],
                                 'curr_a': ['Curr Action', ''],
                                 'count_p': ['Post Count', ''],
-                                'freq_p': ['Posts/min', ''],
+                                'freq_p': ['Posts/sec', ''],
                                 }
 
         # Block print display order (remove item if do not want to display)
@@ -36,9 +36,9 @@ class GeneralUtils:
                              'queue_db',
                              'queue_c',
                              'last_p',
-                             'curr_a',
                              'count_p',
                              'freq_p',
+                             'curr_a',
                              ]
 
         # Windows folders can not be these names

@@ -73,9 +73,17 @@ class RedditScraper(GeneralUtils):
         try:
             stream = praw.helpers.submission_stream(self.reddit.r,
                                                     'all',
-                                                    500,  # Max num of posts to get each call
+                                                    1000,  # Max num of posts to get each call
                                                     0)
             for item in stream:
+                # We found another post
+                self.post_count += 1
+                self.bprint(self.post_count, 'count_p')
+                # Calc posts per second
+                post_per_sec = ((self.post_count - 1000) /  # -1000 to offset the first large grab
+                                (time.time() - self.start_time))
+                self.bprint("%.2f" % post_per_sec, 'freq_p')
+                # Add post to queue
                 self.q.put(item)
             self.q.join()
         except InterruptedError:
