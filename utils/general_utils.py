@@ -177,8 +177,7 @@ class GeneralUtils:
     def _bprint_display(self):
         self.bprint_messages['title'][1] = time.time()
 
-        # TODO: support other OS's
-        os.system("cls")
+        os.system('cls' if os.name == 'nt' else 'clear')
         for item in self.bprint_order:
             print(self.bprint_messages[item][0] + ": " +
                   str(self.bprint_messages[item][1]))
