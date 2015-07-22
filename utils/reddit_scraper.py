@@ -13,10 +13,13 @@ from utils.general_utils import GeneralUtils
 
 class RedditScraper(GeneralUtils):
 
-    def __init__(self, reddit_oauth, save_path, num_threads):
+    def __init__(self, reddit_oauth, watch_list_file, save_path, num_threads):
         super().__init__()
 
         self.base_dir = self.norm_path(save_path)
+
+        # Users and subreddits watch list
+        self.watch_list_file = watch_list_file
 
         # Path for database file
         self.db_file = os.path.join(self.base_dir, 'logs', 'test.db')
@@ -114,12 +117,10 @@ class RedditScraper(GeneralUtils):
         temp_list = {}
         self.scrape = {'subreddits': [], 'users': [], 'content': {}}
 
-        subreddit_list_file = './configs/subreddits.txt'
-        with open(subreddit_list_file) as f:
+        with open(self.watch_list_file['subreddits']) as f:
             temp_list['subreddits'] = f.readlines()
 
-        user_list_file = './configs/users.txt'
-        with open(user_list_file) as f:
+        with open(self.watch_list_file['users']) as f:
             temp_list['users'] = f.readlines()
 
         # Break down the params in the user and subreddit lists
