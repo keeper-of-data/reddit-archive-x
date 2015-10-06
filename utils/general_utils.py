@@ -22,22 +22,24 @@ class GeneralUtils:
         # Block print display messages and value store
         self.bprint_messages = {'title': ['Reddit Archiver by /u/xtream1101 ', ''],
                                 'queue_p': ['Post Queue', ''],
-                                'queue_db': ['DB Queue', ''],
                                 'queue_c': ['Comment Queue', ''],
                                 'last_p': ['Last post', ''],
                                 'curr_a': ['Curr Action', ''],
                                 'count_p': ['Post Count', ''],
+                                'count_c': ['Comment Count', ''],
                                 'freq_p': ['Posts/sec', ''],
+                                'freq_c': ['Comments/sec', ''],
                                 }
 
         # Block print display order (remove item if do not want to display)
         self.bprint_order = ['title',
                              'queue_p',
-                             'queue_db',
                              'queue_c',
                              'last_p',
                              'count_p',
+                             'count_c',
                              'freq_p',
+                             'freq_c',
                              'curr_a',
                              ]
 
@@ -96,29 +98,28 @@ class GeneralUtils:
 
         return path
 
-    def create_sub_save_file(self, created_utc, subreddit_save, post_id):
+    def create_sub_save_file(self, created_utc, subreddit_save, filename):
         """
-        `post_id` is just used for filename, so we can
-          append `_comments` or anything else safely
         """
         created = self.get_datetime(created_utc)
         y = str(created.year)
         m = str(created.month)
         d = str(created.day)
-        utc_str = str(int(created_utc))
+        h = str(created.hour)
+        # utc_str = str(int(created_utc))
 
-        # Create .json savepath, filename will be created_utc_id.json
+        # Create .json savepath
         # Create directory 3 deep (min length of a subreddit name)
         json_save_path = self.create_base_path('subreddits',
                                                subreddit_save[0:1],
                                                subreddit_save[0:2],
                                                subreddit_save,
-                                               y, m, d
+                                               y, m, d, h
                                                )
         # Save path for json data
         json_save_file = os.path.join(
                                       json_save_path,
-                                      utc_str + "_" + post_id + ".json"
+                                      filename + ".json"
                                       )
         return json_save_file
 
@@ -214,6 +215,8 @@ class GeneralUtils:
         :param level: Level to which to log msg, default: info
         :return: Data as a string to print to console
         """
+        with open("error.log", 'a') as f:
+            f.write(msg)
         print("LOG:", msg)
 
     #######################################################
@@ -247,6 +250,23 @@ class GeneralUtils:
                 f.write(content + "\n")
         finally:
             self.file_lock[file_dict_name].release()
+
+    def append_json_file(self, save_file, content):
+        """
+        Adds a json object to a json array in a file
+        This method keeps valid json format
+        """
+        if not os.path.isfile(save_file):
+            # Create the file
+            with open(self.create_path(save_file), 'w') as f:
+                f.write("[\n]")
+            frmt = "{}\n]"
+        else:
+            frmt = ",{}\n]"
+
+        with open(save_file, mode="r+") as sf:
+            sf.seek(os.stat(save_file).st_size - 1)
+            sf.write(frmt.format(json.dumps(content, sort_keys=True, indent=4)))
 
     def save_file(self, save_file, content, content_type='plain_text'):
         """

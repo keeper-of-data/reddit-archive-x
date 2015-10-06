@@ -56,8 +56,9 @@ In the example below:
      |           └─ <year>
      |              └─ <month>
      |                 └─ <day>
-     |                    ├─ <utc_time>_<post_id>.json  # Post info
-     |                    └─ <utc_time>_<post_id>_comments.json  # All comments from post and their children
+     |                    └─ <hour>
+     |                       ├─ <utc_time>_<post_id>.json  # Post info
+     |                       └─ <utc_time>_<post_id>_comments.json  # All comments from post and their children
      |
      └─ running.lock  # Is here when the programing is running
 

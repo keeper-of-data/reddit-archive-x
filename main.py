@@ -1,7 +1,6 @@
 import os
 import sys
 import signal
-import sqlite3
 import argparse
 import warnings
 import configparser
@@ -34,23 +33,6 @@ remove the lock file at:
         # Create "lock" file so we know the program is running
         open(lock_file, 'a').close()
 
-
-def setup_database():
-    # If we do not have a database file then create it
-    if not os.path.isfile(db_file):
-        conn = sqlite3.connect(db_file)
-        conn.execute('''CREATE TABLE posts
-                     (id             INTEGER    PRIMARY KEY  AUTOINCREMENT,
-                      created        INTEGER    NOT NULL,
-                      created_utc    INTEGER    NOT NULL,
-                      post_id        VARCHAR(20)  UNIQUE NOT NULL,
-                      subreddit      VARCHAR(100)    NOT NULL,
-                      subreddit_save VARCHAR(100)    NOT NULL,
-                      author         VARCHAR(100)    NOT NULL,
-                      have_comments  INTEGER      DEFAULT 0
-                     );
-                     ''')
-        conn.close()
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
@@ -97,9 +79,6 @@ if __name__ == "__main__":
                     )
 
     lock_file = os.path.join(save_path, "running.lock")
-
-    db_file = os.path.join(save_path, 'logs', 'test.db')
-    setup_database()
 
     # Get number of threads to use from config
     num_threads = int(config['parser']['num_threads'])
