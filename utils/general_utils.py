@@ -6,12 +6,14 @@ import urllib
 import shutil
 import traceback
 import threading
+import logging
 from datetime import datetime
 
 
 class GeneralUtils:
 
     def __init__(self):
+        
 
         # Lock file access when in use
         self.file_lock = {}
@@ -24,21 +26,25 @@ class GeneralUtils:
                                 'queue_p': ['Post Queue', ''],
                                 'queue_c': ['Comment Queue', ''],
                                 'last_p': ['Last post', ''],
-                                'curr_a': ['Curr Action', ''],
+                                'last_c': ['Last comment', ''],
+                                'queue_db': ['DB Queue', ''],
                                 'count_p': ['Post Count', ''],
                                 'count_c': ['Comment Count', ''],
                                 'freq_p': ['Posts/sec', ''],
                                 'freq_c': ['Comments/sec', ''],
+                                'curr_a': ['Curr Action', ''],
                                 }
 
         # Block print display order (remove item if do not want to display)
         self.bprint_order = ['title',
                              'queue_p',
-                             'queue_c',
                              'last_p',
                              'count_p',
-                             'count_c',
                              'freq_p',
+                             'queue_db',
+                             'queue_c',
+                             'last_c',
+                             'count_c',
                              'freq_c',
                              'curr_a',
                              ]
@@ -215,9 +221,12 @@ class GeneralUtils:
         :param level: Level to which to log msg, default: info
         :return: Data as a string to print to console
         """
+        if level != 'info':
+            pass
         with open("error.log", 'a') as f:
             f.write(msg)
-        print("LOG:", msg)
+
+        # print("LOG:", msg)
 
     #######################################################
     #

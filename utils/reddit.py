@@ -9,9 +9,8 @@ class RedditData(GeneralUtils):
     def __init__(self, reddit_oauth, parser_name):
         super().__init__()
 
-        handler = MultiprocessHandler()
         # Create reddit object
-        self.r = praw.Reddit(user_agent='reddit-archiver-x on ' + parser_name, handler=handler)
+        self.r = praw.Reddit(user_agent='reddit-archiver-x on ' + parser_name)
         self.r.config.store_json_result = True
 
         self.oauth_helper = PrawOAuth2Mini(
