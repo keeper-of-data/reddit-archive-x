@@ -6,6 +6,10 @@ access_token = cccc
 refresh_token = dddd
 
 [parser]
+; Set to `true` if you want ot download external media posted
+media = false
+; either `posts` or `comments`
+archive = comments
 num_threads = 4
 save_path = ~/Downloads/reddit/
 log_path = ~/Downloads/reddit/logs/

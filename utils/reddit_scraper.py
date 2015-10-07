@@ -14,15 +14,17 @@ from utils.general_utils import GeneralUtils
 
 class RedditScraper(GeneralUtils):
 
-    def __init__(self, reddit_oauth, watch_list_file, save_path, num_threads):
+    def __init__(self, reddit_oauth, watch_list_file, save_path, num_threads, config_media, config_archive):
         super().__init__()
 
         LOG_FILENAME = save_path + '/logs/reddit_scrape.log'
-        logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO)
+        logging.basicConfig(filename=LOG_FILENAME, level=logging.WARNING)
 
         self.base_dir = self.norm_path(save_path)
+        self.media = config_media
+        self.archive = config_archive
 
-        self.sql = Sql(self.base_dir)
+        self.sql = Sql(self.base_dir, self.archive)
 
         # Users and subreddits watch list
         self.watch_list_file = watch_list_file
@@ -34,7 +36,7 @@ class RedditScraper(GeneralUtils):
 
         # Enable bprint
         self.enable_bprint()
-        # self.bprint_update()
+        self.bprint_update()
 
         # Name of scraper to put in the user agent
         scraper_name = socket.gethostname()
@@ -47,7 +49,7 @@ class RedditScraper(GeneralUtils):
         self.load_scrape_config()
 
         # Stats
-        self.start_time = time.time()
+        self.start_time = 0
         self.post_count = 0
         self.comment_count = 0
 
@@ -61,21 +63,14 @@ class RedditScraper(GeneralUtils):
 
         self.bprint("Starting streams...", 'curr_a')
 
+        if self.archive == "t1":
+            worker = threading.Thread(target=self.comment_stream)
+        elif self.archive == "t3":
+            worker = threading.Thread(target=self.post_stream)
 
-        # self.post_stream()
-        # self.comment_stream()
-
-        worker2 = threading.Thread(target=self.comment_stream)
-        worker2.setDaemon(True)
-        worker2.start()
-
-        # worker = threading.Thread(target=self.post_stream)
-        # worker.setDaemon(True)
-        # worker.start()
-
-        # Keep program alive
-        while True:
-            time.sleep(.2)
+        worker.setDaemon(True)
+        worker.start()
+        worker.join()
 
     def post_stream(self):
         ###
@@ -96,6 +91,8 @@ class RedditScraper(GeneralUtils):
                 self.post_count += 1
                 self.bprint(self.post_count, 'count_p')
                 # Calc posts per second
+                if self.post_count <= 100:  # Means that it is the first time here
+                    self.start_time = time.time()
                 post_per_sec = ((self.post_count - 100) /  # -100 to offset the first large grab
                                 (time.time() - self.start_time))
                 self.bprint("%.2f" % post_per_sec, 'freq_p')
@@ -104,7 +101,6 @@ class RedditScraper(GeneralUtils):
             self.q_posts.join()
         except:
             logging.exception('post stream')
-            # self.log(traceback.print_exc(), level='error')
             return
 
     def comment_stream(self):
@@ -126,6 +122,8 @@ class RedditScraper(GeneralUtils):
                 self.comment_count += 1
                 self.bprint(self.comment_count, 'count_c')
                 # Calc comments per second
+                if self.comment_count <= 100:  # Means that it is the first time here
+                    self.start_time = time.time()
                 comments_per_sec = ((self.comment_count - 100) /  # -100 to offset the first large grab
                                     (time.time() - self.start_time))
                 self.bprint("%.2f" % comments_per_sec, 'freq_c')
@@ -134,7 +132,6 @@ class RedditScraper(GeneralUtils):
             self.q_comments.join()
         except:
             logging.exception('comment stream')
-            # self.log(traceback.print_exc(), level='error')
             return
 
     def post_worker(self):
@@ -179,50 +176,16 @@ class RedditScraper(GeneralUtils):
         """
         post = vars(raw_post)['json_dict']
 
-        # Check if we even want this post
-        if 'all' not in self.scrape['subreddits']:
-            if post['subreddit'] not in self.scrape['subreddits'] and \
-               post['author'].lower() not in self.scrape['subreddits']:
-                # This is not the post we are looking for, move along
-                return
+        json_str = json.dumps(post, ensure_ascii=False)
 
-        # Check if we want only sfw or nsfw content from this subreddit
-        if 'all' not in self.scrape['content']:
-            if post['subreddit'] in self.scrape['content']:
-                if self.scrape['content'][post['subreddit']] == 'nsfw' and \
-                   post['over_18'] is False:
-                    return
-                elif self.scrape['content'][post['subreddit']] == 'sfw' and \
-                     post['over_18'] is True:
-                    return
-        else:
-            if self.scrape['content']['all'] == 'nsfw' and \
-               post['over_18'] is False:
-                return
-            elif self.scrape['content']['all'] == 'sfw' and \
-                 post['over_18'] is True:
-                return
-
-        self.bprint(post['id'], 'last_p')
-        self.bprint("Saving post " + post['id'], 'curr_a')
-
-        # Check if full sub name is in reserved_words then append a `-`
-        post['subreddit_save_folder'] = post['subreddit']
-        if post['subreddit_save_folder'] in self.reserved_words:
-            post['subreddit_save_folder'] = post['subreddit'] + "-"
-
-        # Save json data
-        json_save_file = self.create_sub_save_file(post['created_utc'],
-                                                   post['subreddit_save_folder'],
-                                                   post['id'] + "_t3_" + post['created_utc'])  # we add _t3 so we know its a post json file
-        try:
-            self.save_file(json_save_file, post, content_type='json')
-        except Exception as e:
-            self.log("Exception parse_post [json]: " +
-                     post['subreddit'] + "\n" +
-                     str(e) + " " + post['id'] + "\n" +
-                     str(traceback.format_exc()), level='error'
-                     )
+        self.sql.sql_add_queue([post['name'],
+                                int(post['created_utc']),
+                                post['domain'],
+                                post['subreddit'],
+                                post['subreddit_id'],
+                                post['author'],
+                                json_str
+                                ])
 
         self.bprint("Waiting for content...", 'curr_a')
         # Done doing things here
@@ -233,13 +196,6 @@ class RedditScraper(GeneralUtils):
         Process comment
         """
         comment = vars(raw_comment)['json_dict']
-
-        # Check if we even want this post
-        if 'all' not in self.scrape['subreddits']:
-            if comment['subreddit'] not in self.scrape['subreddits'] and \
-               comment['author'].lower() not in self.scrape['subreddits']:
-                # This is not the post we are looking for, move along
-                return
 
         self.bprint(comment['id'], 'last_c')
         self.bprint("Saving comment " + comment['id'], 'curr_a')

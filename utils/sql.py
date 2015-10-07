@@ -7,10 +7,11 @@ from queue import Queue
 
 class Sql:
 
-    def __init__(self, save_path):
+    def __init__(self, save_path, content_type):
 
         self._db_file = os.path.join(save_path, "testA.db")
 
+        self.content_type = content_type
         self._setup_database()
 
         # Create queue for inserting into database to use
@@ -22,26 +23,37 @@ class Sql:
         sql_worker.start()
 
     def get_sql_queue(self):
-        try:
-            return self._sql_queue.get()
-        except:
-            return "x"
+        return self._sql_queue.qsize()
 
     def _setup_database(self):
         # If we do not have a database file then create it
+        # TODO: Check if we have the correct tables if the file DOES exists
         if not os.path.isfile(self._db_file):
             conn = sqlite3.connect(self._db_file)
-            conn.execute('''CREATE TABLE comments
-                         (name           VARCHAR(20)     PRIMARY KEY,
-                          created_utc    INTEGER         NOT NULL,
-                          link_id        VARCHAR(20)     NOT NULL,
-                          subreddit      VARCHAR(100)    NOT NULL,
-                          subreddit_id   VARCHAR(20)     NOT NULL,
-                          author         VARCHAR(100)    NOT NULL,
-                          parent_id      VARCHAR(20)     NOT NULL,
-                          json           TEXT            NOT NULL
-                         );
-                         ''')
+            if self.content_type == "t1":
+                conn.execute('''CREATE TABLE t1
+                             (name           VARCHAR(20)     PRIMARY KEY,
+                              created_utc    INTEGER         NOT NULL,
+                              link_id        VARCHAR(20)     NOT NULL,
+                              subreddit      VARCHAR(100)    NOT NULL,
+                              subreddit_id   VARCHAR(20)     NOT NULL,
+                              author         VARCHAR(100)    NOT NULL,
+                              parent_id      VARCHAR(20)     NOT NULL,
+                              json           TEXT            NOT NULL
+                             );
+                             ''')
+            elif self.content_type == "t3":
+                conn.execute('''CREATE TABLE t3
+                             (name           VARCHAR(20)     PRIMARY KEY,
+                              created_utc    INTEGER         NOT NULL,
+                              domain         VARCHAR(100)    NOT NULL,
+                              subreddit      VARCHAR(100)    NOT NULL,
+                              subreddit_id   VARCHAR(20)     NOT NULL,
+                              author         VARCHAR(100)    NOT NULL,
+                              json           TEXT            NOT NULL
+                             );
+                             ''')
+
             conn.close()
 
     def sql_add_queue(self, query):
@@ -62,9 +74,15 @@ class Sql:
                 query = self._sql_queue.get()
 
                 try:
-                    cur.execute("INSERT INTO \
-                        comments (name, created_utc, link_id, subreddit, subreddit_id, author, parent_id, json) \
-                        VALUES (?,?,?,?,?,?,?,?)", query)
+                    # TODO: Check utc time to see if new day, if so create new db with new self.conn
+                    if self.content_type == "t1":
+                        cur.execute("INSERT INTO \
+                            t1 (name, created_utc, link_id, subreddit, subreddit_id, author, parent_id, json) \
+                            VALUES (?,?,?,?,?,?,?,?)", query)
+                    elif self.content_type == "t3":
+                        cur.execute("INSERT INTO \
+                            t3 (name, created_utc, domain, subreddit, subreddit_id, author, json) \
+                            VALUES (?,?,?,?,?,?,?)", query)
                     # Save (commit) the changes
                     conn.commit()
                 except sqlite3.IntegrityError:

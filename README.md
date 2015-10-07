@@ -5,6 +5,12 @@ This is V2 of the script
 Right now it will just archive the json data and comments in an organized folder structure.  
 Support for downloading/saving media posted will come later 
 
+You must run comment archiver and post archiver off of 2 different ip's  
+This is because of the 1 sec rate limit that the reddit api has and you will miss comments if there is a 2 second delay (the comments and posts would take turns so they each can only make a call ever 2 seconds)  
+t1 = comments  
+t3 = post/submission  
+t5 = subreddit  
+
 Supports both users and subreddits  
 
 The script will stream everything from /r/all as it happens and only grab the post if it is a subreddit or user that you are following  

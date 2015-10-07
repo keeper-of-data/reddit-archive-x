@@ -8,7 +8,6 @@ from utils.general_utils import GeneralUtils
 from utils.reddit_scraper import RedditScraper
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-warnings.filterwarnings("ignore", category=ResourceWarning)
 
 
 def signal_handler(signum, frame):
@@ -86,5 +85,27 @@ if __name__ == "__main__":
     if num_threads <= 0:
         num_threads = 1
 
+    config_media = config['parser']['media'].lower()
+    config_archive = config['parser']['archive'].lower()
+
+    if config_media != "true":
+        config_media = True
+    else:
+        config_media = False
+
+    if config_archive == "posts":
+        config_archive = "t3"
+    elif config_archive == "comments":
+        config_archive = "t1"
+    else:
+        print("`Archive` incorrectly set in config")
+        sys.exit(0)
+
     check_lock_file(lock_file)
-    reddit = RedditScraper(config['oauth'], watch_list_file, save_path, num_threads)
+    reddit = RedditScraper(config['oauth'],
+                           watch_list_file,
+                           save_path,
+                           num_threads,
+                           config_media,
+                           config_archive
+                           )
