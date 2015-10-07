@@ -80,12 +80,12 @@ class Sql(GeneralUtils):
         self._create_tables()
         self.conn = sqlite3.connect(self._db_file)
         self.cur = self.conn.cursor()
+        self._check_day = False
 
     def _check_need_new_db(self, time):
         dt = self.get_datetime(time)
         if str(dt.day) != self.curr_day:
             self._create_new_db(time)
-            self._check_day = False
 
     def _timer_check_day(self):
         """
@@ -112,14 +112,16 @@ class Sql(GeneralUtils):
         As items are added to `_sql_queue` they are inserted into the db
         """
 
-        if self._check_day is True:
-            current_utc = self.get_utc_epoch()
-            self._check_need_new_db(current_utc)
+        # First time called, need to run
+        current_utc = self.get_utc_epoch()
+        self._create_new_db(current_utc)
 
         with self.conn:
             while True:
                 query = self._sql_queue.get()
-                self._check_need_new_db(query[1])
+
+                if self._check_day is True:
+                    self._check_need_new_db(query[1])
 
                 try:
                     # TODO: Check utc time to see if new day, if so create new db with new self.conn
