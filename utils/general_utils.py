@@ -62,13 +62,13 @@ class GeneralUtils:
 
     def get_datetime(self, time):
         """
-        :return: datetime object from epoch timestamp
+        :return: utc datetime object from epoch timestamp
         """
-        return datetime.fromtimestamp(time)
+        return datetime.utcfromtimestamp(time)
 
     def get_utc_epoch(self):
         """
-        :return: utc time since epoch
+        :return: utc time as epoch
         """
         return int(time.time())
 
@@ -224,7 +224,7 @@ class GeneralUtils:
         if level != 'info':
             pass
         with open("error.log", 'a') as f:
-            f.write(msg)
+            f.write(str(msg) + "\n")
 
         # print("LOG:", msg)
 
