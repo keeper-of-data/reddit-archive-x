@@ -16,6 +16,9 @@ class Sql(GeneralUtils):
 
         self.conn = None
         self.curr_day = None
+        # When `True`, start checking the posts created time to see if we need a new db
+        self._check_day = None
+        self._set_check_day_true()
 
         # Create queue for inserting into database to use
         self._sql_queue = Queue(maxsize=0)
@@ -82,13 +85,37 @@ class Sql(GeneralUtils):
         dt = self.get_datetime(time)
         if str(dt.day) != self.curr_day:
             self._create_new_db(time)
+            self._check_day = False
+
+    def _timer_check_day(self):
+        """
+        Start checking if new day in n seconds
+        """
+        # Get seconds till midnight utc
+        from datetime import datetime
+
+        now_utc = datetime.utcnow()
+        seconds_since_midnight = (now_utc - now_utc.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
+
+        seconds_till_midnight = abs(seconds_since_midnight - 86400)  # 86400 seconds in a day
+        t_reload = threading.Timer(seconds_till_midnight - 60, self._set_check_day_true)
+        t_reload.setDaemon(True)
+        t_reload.start()
+
+    def _set_check_day_true(self):
+        self._check_day = True
+        # Restart timmer
+        self._timer_check_day()
 
     def _add_to_db(self):
         """
         As items are added to `_sql_queue` they are inserted into the db
         """
-        current_utc = self.get_utc_epoch()
-        self._create_new_db(current_utc)
+
+        if self._check_day is True:
+            current_utc = self.get_utc_epoch()
+            self._check_need_new_db(current_utc)
+
         with self.conn:
             while True:
                 query = self._sql_queue.get()
