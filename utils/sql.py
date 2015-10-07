@@ -1,18 +1,21 @@
 import os
-import time
 import sqlite3
 import threading
 from queue import Queue
+from utils.general_utils import GeneralUtils
 
 
-class Sql:
+class Sql(GeneralUtils):
 
     def __init__(self, save_path, content_type):
-
-        self._db_file = os.path.join(save_path, "testA.db")
+        super().__init__()
 
         self.content_type = content_type
-        self._setup_database()
+
+        self._db_path = save_path
+
+        self.conn = None
+        self.curr_day = None
 
         # Create queue for inserting into database to use
         self._sql_queue = Queue(maxsize=0)
@@ -25,7 +28,7 @@ class Sql:
     def get_sql_queue(self):
         return self._sql_queue.qsize()
 
-    def _setup_database(self):
+    def _create_tables(self):
         # If we do not have a database file then create it
         # TODO: Check if we have the correct tables if the file DOES exists
         if not os.path.isfile(self._db_file):
@@ -63,28 +66,46 @@ class Sql:
         # self._sql_queue.append(query)
         self._sql_queue.put(query)
 
+    def _create_new_db(self, time):
+        dt = self.get_datetime(time)
+        self.curr_day = str(dt.day)
+        year = str(dt.year)
+        month = "%02d" % (dt.month,)
+        day = "%02d" % (dt.day,)
+        filename = year + "." + month + "." + day + "_" + self.content_type + ".db"
+        self._db_file = os.path.join(self._db_path, filename)
+        self._create_tables()
+        self.conn = sqlite3.connect(self._db_file)
+        self.cur = self.conn.cursor()
+
+    def _check_need_new_db(self, time):
+        dt = self.get_datetime(time)
+        if str(dt.day) != self.curr_day:
+            self._create_new_db(time)
+
     def _add_to_db(self):
         """
         As items are added to `_sql_queue` they are inserted into the db
         """
-        conn = sqlite3.connect(self._db_file)
-        with conn:
-            cur = conn.cursor()
+        current_utc = self.get_utc_epoch()
+        self._create_new_db(current_utc)
+        with self.conn:
             while True:
                 query = self._sql_queue.get()
+                self._check_need_new_db(query[1])
 
                 try:
                     # TODO: Check utc time to see if new day, if so create new db with new self.conn
                     if self.content_type == "t1":
-                        cur.execute("INSERT INTO \
+                        self.cur.execute("INSERT INTO \
                             t1 (name, created_utc, link_id, subreddit, subreddit_id, author, parent_id, json) \
                             VALUES (?,?,?,?,?,?,?,?)", query)
                     elif self.content_type == "t3":
-                        cur.execute("INSERT INTO \
+                        self.cur.execute("INSERT INTO \
                             t3 (name, created_utc, domain, subreddit, subreddit_id, author, json) \
                             VALUES (?,?,?,?,?,?,?)", query)
                     # Save (commit) the changes
-                    conn.commit()
+                    self.conn.commit()
                 except sqlite3.IntegrityError:
                     # It tried to add a post that was already in the database
                     #   We do not care, so ignore it
