@@ -13,7 +13,6 @@ from datetime import datetime
 class GeneralUtils:
 
     def __init__(self):
-        
 
         # Lock file access when in use
         self.file_lock = {}
